@@ -17,6 +17,7 @@ _targets.yaml
 # Site output
 **/_site/*
 **/site_libs/*
+_freeze/*
 
 # knitr and caching stuff
 **/*_files/*

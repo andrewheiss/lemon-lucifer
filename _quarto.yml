@@ -1,0 +1,102 @@
+project:
+  title: "Derogations and backsliding"
+  type: website
+  
+  preview: 
+    port: 3333
+    browser: true
+    watch-inputs: false
+    navigate: true
+  
+  render: 
+    # Render all .qmd files
+    - "**/*.qmd"
+
+    # Don't render anything in the manuscript folder because otherwise all the 
+    # output gets placed in _site/ only, which is annoying. Instead this folder 
+    # needs to be rendered separately, and *before* the overall website project 
+    # (which is doable since this whole build process is orchestrated by targets)
+    - "!manuscript/"
+  
+  resources:
+    # But *do* place the outputs from the manuscript folders in the 
+    # rendered site folder
+    - "manuscript/output"
+
+execute:
+  freeze: auto  # Re-render only when source changes
+
+website:
+  repo-url: "https://github.com/andrewheiss/lemon-lucifer"
+  repo-actions: [edit, issue]
+  
+  page-navigation: true
+  
+  navbar:
+    pinned: true
+    background: info
+    search: false
+    left:
+      # - text: "Data"
+      #   file: analysis/data-final.qmd
+      - text: "Analysis"
+        file: analysis/hypotheses.qmd
+      - text: "Paper"
+        menu:
+          - file: analysis/paper.qmd
+          - file: analysis/appendix.qmd
+    right:
+      - icon: github
+        aria-label: github
+        href: https://github.com/andrewheiss/lemon-lucifer
+
+  sidebar:
+    - title: "Data"
+      style: docked
+      background: dark
+      contents:
+        - analysis/data-final.qmd
+        - analysis/data-details.qmd
+
+    - title: "Analysis"
+      contents:
+        - section: "Questions"
+          contents:
+            - analysis/hypotheses.qmd
+            - analysis/methods.qmd
+        - section: "Symposium"
+          contents:
+            - analysis/models-for-symposium-workshop.qmd
+        - section: "Other details"
+          contents:
+            - analysis/targets.qmd
+            - analysis/environment.qmd
+    
+    - title: "Empty space lol"
+
+  page-footer:
+    left: |
+      Content {{< fa brands creative-commons >}} 2024 by Suparna Chaudhry, Audrey Comstock, and Andrew Heiss<br>
+      All content licensed under a {{< fa brands creative-commons >}}
+      {{< fa brands creative-commons-by >}} {{< fa brands creative-commons-nc >}}
+      [Creative Commons Attribution-NonCommercial 4.0 International license (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/)
+    right: |
+      Made with {{< fa brands r-project >}} and [Quarto](https://quarto.org/)<br>
+      [View the source at {{< fa brands github >}} GitHub](https://github.com/andrewheiss/lemon-lucifer)
+
+format:
+  html:
+    shift-heading-level-by: 1
+    theme: 
+      - zephyr
+      - html/custom.scss
+    toc: true
+    toc-depth: 4
+    retina: 3
+    highlight-style: monokai
+    code-fold: true
+    code-tools: true
+    knitr:
+      opts_chunk:
+        dev: "ragg_png"
+        dpi: 300
