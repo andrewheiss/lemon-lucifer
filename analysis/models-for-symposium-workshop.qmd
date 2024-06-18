@@ -1,0 +1,554 @@
+---
+title: "Symposium models"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+if (is.null(knitr::pandoc_to())) {
+  fmt_out <- "interactive"
+} else {
+  fmt_out <- knitr::pandoc_to()
+}
+
+knitr::opts_chunk$set(
+  echo = FALSE, include = FALSE, warning = FALSE, message = FALSE
+)
+
+knitr::opts_chunk$set(
+  fig.align = "center", fig.retina = 3,
+  fig.width = 6, fig.height = (6 * 0.618),
+  out.width = "100%", collapse = TRUE
+)
+```
+
+```{r}
+#| label: libraries-data
+
+library(tidyverse)
+library(haven)
+library(modelsummary)
+library(tinytable)
+library(marginaleffects)
+library(MASS)
+library(conflicted)
+
+conflicts_prefer(dplyr::select)
+
+theme_set(theme_minimal())
+
+config_modelsummary(factory_default = 'tinytable')
+
+derog <- read_stata(here::here("data", "raw_data", "JHR Symposium HR and DB 4 30 24 stata data.dta")) |>
+  zap_formats() |>
+  zap_label() |>
+  mutate(
+    c5_public_transport = factor(c5_public_transport,
+      levels = 0:2,
+      labels = c("No measures", "Recommend closing", "Require closing"),
+      ordered = TRUE
+    ),
+    c6_stay_at_home = factor(c6_stay_at_home,
+      levels = 0:3,
+      labels = c(
+        "No measures", 
+        "Recommend not leaving house", 
+        "Require not leaving house, with exceptions", 
+        "Require not leaving house, with minimal exceptions"
+      ),
+      ordered = TRUE
+    ),
+    c7_internal_movement = factor(c7_internal_movement,
+      levels = 0:2,
+      labels = c("No measures", "Recommend to not travel", "Restrictions in place"),
+      ordered = TRUE
+    ),
+    e1_income_support = factor(e1_income_support,
+      levels = 0:2,
+      labels = c(
+        "No income support", 
+        "Government replaces less than 50% of lost salary", 
+        "Government replaces more than 50% of lost salary"
+      ),
+      ordered = TRUE
+    ),
+    e2_debt_relief = factor(e2_debt_relief,
+      levels = 0:2,
+      labels = c("No debt relief", "Narrow relief", "Broad relief"),
+      ordered = TRUE
+    ),
+    pandem_discrim = factor(pandem_discrim,
+      levels = c("None", "Minor", "Moderate", "Major"),
+      ordered = TRUE
+    ),
+    pandem_ndrights = factor(pandem_ndrights,
+      levels = c("None", "Major"),
+      ordered = TRUE
+    ),
+    pandem_abusive = factor(pandem_abusive,
+      levels = c("None", "Minor", "Moderate", "Major"),
+      ordered = TRUE
+    ),
+    pandem_nolimit = factor(pandem_nolimit,
+      levels = c("None", "Moderate", "Major"),
+      ordered = TRUE
+    ),
+    pandem_media = factor(pandem_media,
+      levels = c("None", "Minor", "Moderate", "Major"),
+      ordered = TRUE
+    )
+  ) |>
+  mutate(
+    panbackdichot = panbackdichot - 1,
+    panbackdichot_bin = as.logical(panbackdichot)
+  ) |> 
+  mutate(
+    across(
+      c(new_cases, new_deaths, cumulative_cases, cumulative_deaths),
+      list(z = ~ as.numeric(scale(.)))
+    )
+  )
+
+gof_map <- tribble(
+  ~raw,          ~clean,                 ~fmt, ~omit,
+  "nobs",        "N",                    0,    FALSE
+)
+
+coef_map <- c(
+  "(Intercept)" = "Intercept",
+  "derogation_ineffect" = "Derogation in effect",
+  "panbackdichot" = "Pandemic backsliding (PanBack), dichotomous",
+  "derogation_ineffect:panbackdichot" = "Derogation in effect × Pandemic backsliding",
+  "panback" = "Pandemic backsliding (PanBack)",
+  "pandem" = "Pandemic violations of democratic standards (PanDem)",
+  "new_cases" = "New cases",
+  "new_cases_z" = "New cases (standardized)",
+  "new_deaths" = "New deaths",
+  "new_deaths_z" = "New deaths (standardized)",
+  "cumulative_cases" = "Cumulative cases",
+  "cumulative_cases_z" = "Cumulative cases (standardized)",
+  "cumulative_deaths" = "Cumulative deaths",
+  "cumulative_deaths_z" = "Cumulative deaths (standardized)",
+  "v2x_rule" = "Rule of law index",
+  "No measures|Recommend to not travel" = "No measures | Recommend to not travel",
+  "Recommend to not travel|Restrictions in place" = "Recommend to not travel | Restrictions in place",
+  "No measures|Recommend closing" = "No measures | Recommend closing",
+  "Recommend closing|Require closing" = "Recommend closing | Require closing",
+  "No measures|Recommend not leaving house" = "No measures | Recommend not leaving house",
+  "Recommend not leaving house|Require not leaving house, with exceptions" = "Recommend not leaving house| Require not leaving house, with exceptions",
+  "Require not leaving house, with exceptions|Require not leaving house, with minimal exceptions" = "Require not leaving house, with exceptions | Require not leaving house, with minimal exceptions",
+  "No income support|Government replaces less than 50% of lost salary" = "No income support | Government replaces less than 50% of lost salary",
+  "Government replaces less than 50% of lost salary|Government replaces more than 50% of lost salary" = "Government replaces less than 50% of lost salary | Government replaces more than 50% of lost salary",
+  "No debt relief|Narrow relief" = "No debt relief | Narrow relief",
+  "Narrow relief|Broad relief" = "Narrow relief | Broad relief",
+  "None|Minor" = "None | Minor",
+  "Minor|Moderate" = "Minor | Moderate",
+  "Moderate|Major" = "Moderate | Major",
+  "None|Moderate" = "None | Moderate"
+)
+
+tidy_custom.polr <- function(x, ...) {
+  s <- lmtest::coeftest(x)
+  out <- data.frame(
+    term = row.names(s),
+    p.value = s[, "Pr(>|t|)"])
+  out
+}
+```
+
+# 1: Explaining COVID-19 Derogations
+
+```{r}
+#| label: tbl-derogations
+#| include: true
+#| tbl-cap: "Explaining COVID-19 Derogations"
+
+model1 <- glm(
+  iccpr_derogation_filed ~ panback + new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  family = binomial(link = "logit")
+)
+
+model2 <- glm(
+  iccpr_derogation_filed ~ pandem + new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  family = binomial(link = "logit")
+)
+
+# Save models for II paper appendix
+# saveRDS(
+#   lst(models = list("Model 1" = model1, "Model 2" = model2), gof_map, coef_map), 
+#   "~/Desktop/determinants_models.rds"
+# )
+
+modelsummary(
+  list("Model 1" = model1, "Model 2" = model2), 
+  exponentiate = TRUE,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_map = coef_map,
+  gof_map = gof_map,
+  stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes = list(
+    "Logistic regression models; odds ratios (standard error)",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  )
+)
+```
+
+```{r}
+#| label: fig-pred-derogations
+#| include: true
+
+plot_predictions(model1, condition = "panback") +
+  labs(y = "Predicted probability of derogation")
+
+plot_predictions(model2, condition = "pandem") +
+  labs(y = "Predicted probability of derogation")
+```
+
+
+
+# 2: Explaining COVID-19 Restrictions
+
+```{r}
+#| label: tbl-restrictions
+#| include: true
+#| tbl-cap: "Explaining COVID-19 Restrictions"
+
+model3 <- polr(
+  c7_internal_movement ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model4 <- polr(
+  c5_public_transport ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model5 <- polr(
+  c6_stay_at_home ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+modelsummary(
+  list(
+    "Model 3<br>(Internal movement)" = model3, 
+    "Model 4<br>(Public transportation)" = model4, 
+    "Model 5<br>(Stay at home)" = model5
+  ), 
+  exponentiate = TRUE,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_map = coef_map,
+  gof_map = gof_map,
+  stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes = list(
+    "Ordered logistic regression models; odds ratios (standard error)",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  )
+)
+```
+
+```{r}
+#| label: fig-pred-restrictions
+#| include: true
+#| fig-width: 7
+
+plot_predictions(model3, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$c7_internal_movement)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\ninternal movement measures",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model4, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$c5_public_transport)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\ntransportation measures",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model5, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$c6_stay_at_home)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nstay at home measures",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+# 3: Explaining COVID-19 Economic Policies
+
+```{r}
+#| label: tbl-economic-policies
+#| include: true
+#| tbl-cap: "Explaining COVID-19 Economic Policies"
+
+model6 <- polr(
+  e1_income_support ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model7 <- polr(
+  e2_debt_relief ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+modelsummary(
+  list(
+    "Model 6<br>(Income support)" = model6, 
+    "Model 7<br>(Debt relief)" = model7
+  ), 
+  exponentiate = TRUE,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_map = coef_map,
+  gof_map = gof_map,
+  stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes = list(
+    "Ordered logistic regression models; odds ratios (standard error)",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  )
+)
+```
+
+```{r}
+#| label: fig-pred-economic-policies
+#| include: true
+#| fig-width: 6
+#| fig-height: 5
+
+plot_predictions(model6, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$e1_income_support))), ncol = 1) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nincome support",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model7, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$e2_debt_relief))), ncol = 1) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\ndebt relief",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+# 4: Explaining COVID-19 Human Rights Violations
+
+```{r}
+#| label: tbl-human-rights
+#| include: true
+#| tbl-cap: "Explaining COVID-19 Human Rights Violations"
+
+model_discrim <- polr(
+  pandem_discrim ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model_ndrights <- glm(
+  pandem_ndrights ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  family = binomial(link = "logit")
+)
+
+model_abusive <- polr(
+  pandem_abusive ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model_nolimit <- polr(
+  pandem_nolimit ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+model_media <- polr(
+  pandem_media ~ derogation_ineffect*panbackdichot + 
+    new_cases_z + new_deaths_z + cumulative_cases_z + cumulative_deaths_z + v2x_rule,
+  data = derog,
+  method = "logistic",
+  Hess = TRUE
+)
+
+modelsummary(
+  list(
+    "Model 8<br>(Discriminatory policy)" = model_discrim, 
+    "Model 9<br>(Non-derogable rights)" = model_ndrights,
+    "Model 10<br>(No time limit measures)" = model_abusive,
+    "Model 11<br>(Abusive enforcement)" = model_nolimit,
+    "Model 12<br>(Media restrictions)" = model_media
+  ), 
+  exponentiate = TRUE,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  coef_map = coef_map,
+  gof_map = gof_map,
+  stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes = list(
+    "Models 8, 10, 11, and 12 are ordered logistic regression models; Model 9 is a logistic regression model; odds ratios (standard error)",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  )
+)
+```
+
+```{r}
+#| label: fig-pred-human-rights
+#| include: true
+
+plot_predictions(model_discrim, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$pandem_discrim)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\ndiscriminatory policy",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model_ndrights, condition = c("panbackdichot", "derogation_ineffect")) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nviolating non-derogable rights",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model_nolimit, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$pandem_nolimit)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nno time limits",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model_abusive, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$pandem_abusive)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nabusive enforcement",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+
+plot_predictions(model_media, condition = c("panbackdichot", "derogation_ineffect")) +
+  facet_wrap(vars(factor(group, levels = levels(derog$pandem_media)))) +
+  labs(
+    x = "Derogation in effect",
+    y = "Predicted probability of\nmedia restrictions",
+    color = "panback"
+  ) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+# 5: Explaining Non-Derogation Human Rights Treaty Actions during COVID-19
+
+```{r}
+#| label: tbl-treaty-actions
+#| include: true
+#| tbl-cap: "Explaining Non-Derogation Human Rights Treaty Actions during COVID-19"
+
+model8 <- glm(
+  noniccprtreatyactionsdichotomous ~ panback + new_cases + new_deaths + cumulative_cases + cumulative_deaths + v2x_rule,
+  data = derog,
+  family = binomial(link = "logit")
+)
+
+model9 <- glm(
+  noniccprtreatyactionsdichotomous ~ pandem + new_cases + new_deaths + cumulative_cases + cumulative_deaths + v2x_rule,
+  data = derog,
+  family = binomial(link = "logit")
+)
+
+modelsummary(
+  list("Model 13" = model8, "Model 14" = model9), 
+  exponentiate = TRUE,
+  estimate = "{estimate} ({std.error}){stars}",
+  statistic = NULL,
+  coef_map = coef_map,
+  gof_map = gof_map,
+  stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes = list(
+    "Logistic regression models; odds ratios (standard error)",
+    "* p < 0.1, ** p < 0.05, *** p < 0.01"
+  )
+)
+```
+
+```{r}
+#| label: fig-pred-treaty-actions
+#| include: true
+
+plot_predictions(model8, condition = "panback") +
+  labs(y = "Predicted probability of derogation")
+
+plot_predictions(model9, condition = "pandem") +
+  labs(y = "Predicted probability of derogation")
+```
+
