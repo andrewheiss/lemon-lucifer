@@ -1,0 +1,44 @@
+# R stuff
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Data stuff
+# (ignore for now)
+data/raw_data/
+data/derived_data/
+analysis/data/
+
+# Targets stuff
+_targets
+_targets.yaml
+
+# Site output
+**/_site/*
+**/site_libs/*
+
+# knitr and caching stuff
+**/*_files/*
+**/*_cache/*
+
+# Output
+# (ignore for now)
+analysis/output/
+manuscript/output/
+manuscript/submissions/
+manuscript/*_files/
+manuscript/*.html.md
+manuscript/*.pdf.md
+manuscript/*.docx.md
+
+# Miscellaneous
+*.~lock.*
+.DS_Store
+.dropbox
+Icon?
+admin/*
+
+/.luarc.json
+
+/.quarto/
