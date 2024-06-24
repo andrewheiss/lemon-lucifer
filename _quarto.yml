@@ -60,9 +60,10 @@ website:
 
     - title: "Analysis"
       contents:
-        - section: "Questions"
+        - section: "Analysis"
           contents:
             - analysis/hypotheses.qmd
+            - analysis/misc-analysis.qmd
             - analysis/methods.qmd
         - section: "Symposium"
           contents:

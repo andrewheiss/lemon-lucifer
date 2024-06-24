@@ -47,9 +47,17 @@ list(
   tar_target(derog_back_raw,
     here_rel("data", "raw_data", "JHR Symposium HR and DB 4 30 24 stata data.dta"),
     format = "file"),
+  tar_target(naturalearth_raw_file,
+    here_rel("data", "raw_data", "ne_110m_admin_0_countries",
+      "ne_110m_admin_0_countries.shp"),
+    format = "file"),
   
   ## Process and clean data ----
   tar_target(derog, clean_derog(derog_back_raw)),
+
+  tar_target(world_map, load_world_map(naturalearth_raw_file)),
+  tar_target(derog_count, make_derog_count(derog)),
+  tar_target(map_with_data, make_map_data(derog, derog_count, world_map)),
   
   ## Graphics ----
   tar_target(graphic_functions, lst(theme_pandem, set_annotation_fonts, clrs)),

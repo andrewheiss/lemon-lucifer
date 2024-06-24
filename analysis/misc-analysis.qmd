@@ -1,0 +1,104 @@
+---
+title: "Other analysis"
+format:
+  html:
+    code-tools: false
+    include-in-header: 
+      - text: |
+          <style>
+          .table th {
+            font-weight: bold
+          }
+          </style>
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%", 
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(scales)
+library(sf)
+library(tinytable)
+library(targets)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+tar_load(map_with_data)
+invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
+invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+```
+
+
+```{r}
+#| label: fig-derogation-map
+#| fig-width: 6.5
+#| fig-height: 3.5
+#| out-width: 100%
+#| fig-cap: "ICCPR pandemic-related derogations"
+
+ggplot() +
+  geom_sf(
+    data = map_with_data, aes(fill = derogations_1plus),
+    linewidth = 0.1, color = "white"
+  ) +
+  coord_sf(crs = st_crs("+proj=robin"), datum = NA) +
+  scale_fill_binned(low = colorspace::lighten(clrs[1], amount = 0.8), 
+    high = clrs[1], na.value = "grey85",
+    breaks = c(1, 5, 10, 15, 20),
+    limits = c(1, 20),
+    name = "Derogations filed: ",
+    guide = guide_colorsteps(barwidth = 7, barheight = 0.4, title.vjust = 1)
+  ) +
+  theme_pandem() +
+  theme(
+    panel.border = element_blank(),
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = rel(0.6)),
+    legend.justification = "center"
+  )
+```
+
+```{r}
+#| label: fig-panback-map
+#| fig-width: 6.5
+#| fig-height: 3.5
+#| out-width: 100%
+#| fig-cap: "Average Pandemic Backsliding Index from V-Dem from March 2020–June 2021"
+
+ggplot() +
+  geom_sf(
+    data = map_with_data, aes(fill = avg_panback_cut),
+    linewidth = 0.05, color = "white"
+  ) +
+  coord_sf(crs = st_crs("+proj=robin"), datum = NA) +
+  scale_fill_manual(
+    values = clrs[c(8, 7, 2, 1)],
+    na.value = "grey85",
+    breaks = levels(map_with_data$avg_panback_cut),
+    name = "Average Pandemic Backsliding Index"
+  ) +
+  theme_pandem() +
+  theme(
+    panel.border = element_blank(),
+    legend.position = "bottom",
+    legend.justification = "center"
+  )
+```
