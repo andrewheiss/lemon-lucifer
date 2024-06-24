@@ -3,18 +3,678 @@ title: "Hypotheses"
 format:
   html:
     code-tools: false
+    include-in-header: 
+      - text: |
+          <style>
+          .table th {
+            font-weight: bold
+          }
+          </style>
 ---
 
-We test two sets of hypotheses:
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%", 
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
 
-## H~1~: Formal derogations and pandemic-related emergency policies
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
 
-- **H~1a~**: If states issued COVID-19 derogations, then we expect that they will be more likely to impose relevant emergency polices such as canceling public events, restricting gatherings, closing public transit, and restricting domestic and international movement.
-- **H~1b~**: If states did not issue COVID-19 derogations, we expect that they will be less likely to impose related emergency policies.
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(tidybayes)
+library(modelsummary)
+library(marginaleffects)
+library(scales)
+library(tinytable)
+library(ggh4x)
+library(targets)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+tar_load(c(m_derogations, m_tbl_derogations))
+tar_load(c(m_restrictions, m_tbl_restrictions))
+tar_load(c(m_econ, m_tbl_econ))
+tar_load(c(m_hr, m_tbl_hr))
+
+invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
+invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+```
 
 
-## H~2~: Formal derogations and pandemic-related human rights violations
+# Expectations / hypotheses
 
-- **H~2a~**: If states formally derogate from international treaty provisions, then they are less likely to use discriminatory policy measures during the pandemic.
-- **H~2b~**: If states formally derogate from international treaty provisions, then they are less likely to violate non-derogable rights.
-- **H~2c~**: If states formally derogate from international treaty provisions, then they are less likely to impose measures with no time limits.
+```{r}
+#| label: tbl-expectations
+#| tbl-cap: "Expectations about state transparency and practices during COVID-19"
+
+tbl <- tribble(
+  ~` `, ~Derogation, ~`No derogation`,
+  "Backsliding", "Transparency about restrictions and violations", "Low/no transparency about restrictions and violations",
+  "", "*Motivations*: Legitimation and reputation concerns", "*Motivations*: Leader not concerned about reputation backlash",
+  "No backsliding", "High transparency about potential restrictions and violations", "Limited/no transparency about restrictions and violations",
+  "", "*Motivations*: Strong rule of law and valuation of international regime", "*Motivations*: Limited concern about reputation backlash and limited valuation of international regime"
+)
+
+tbl |> 
+  tt(width = c(1, 2, 2)) |> 
+  format_tt(j = 2:3, markdown = TRUE) |> 
+  style_tt(j = 1:3, align = "lll") |> 
+  style_tt(j = 1, bold = TRUE) |> 
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+- H~1~: States will be more likely to issue derogations during COVID-19 if they have strong rule of law.
+- H~2~: Regime transitioning states, including backsliders, will be more likely to issue derogations.
+- H~3~: If a state derogates from ICCPR, we expect that they will take the pandemic more seriously and be more likely to issue pandemic-related restrictions.
+- H~4~: States experiencing democratic backsliding will be more likely to abuse human rights.
+- H~5~: States experiencing democratic backsliding that also issue derogations will be less likely to abuse human rights than states that only backslide.
+
+
+# Explaining derogations (H~1~ and H~2~)
+
+## Derogations predicted with backsliding (PanBack)
+
+::: {.callout-tip}
+### Quick interpretation
+
+States that experienced democratic backsliding were more likely to derogate, but only by a little
+:::
+
+```{r}
+#| label: fig-derog-panback
+
+preds_derog_panback <- m_derogations$m_derogations_panback |> 
+  epred_draws(
+    datagrid(model = m_derogations$m_derogations_panback, panback = seq(0, 1, 0.1)), 
+    ndraws = 500, seed = 1234)
+
+ggplot(preds_derog_panback, aes(x = panback, y = .epred)) +
+  stat_lineribbon(alpha = 0.4, fill = clrs[5], color = clrs[5]) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  labs(
+    x = "Pandemic backsliding index (PanBack)", 
+    y = "Posterior probability of derogation",
+    fill = "Internal movement measures"
+  ) +
+  theme_pandem()
+```
+
+## Derogations predicted with violations of democratic standards (PanDem)
+
+::: {.callout-tip}
+### Quick interpretation
+
+States that had worse violations of democratic standards were less likely to derogate, but the difference is not really substanial (0.5%ish chance when PanDem is 0; 0.15%ish chance when PanDem is 1)
+:::
+
+```{r}
+#| label: fig-derog-pandem
+
+preds_derog_pandem <- m_derogations$m_derogations_pandem |> 
+  epred_draws(
+    datagrid(model = m_derogations$m_derogations_pandem, pandem = seq(0, 1, 0.1)), 
+    ndraws = 500, seed = 1234)
+
+ggplot(preds_derog_pandem, aes(x = pandem, y = .epred)) +
+  stat_lineribbon(alpha = 0.4, fill = clrs[8], color = clrs[8]) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  labs(
+    x = "Pandemic violations of democratic standards index (PanDem)", 
+    y = "Posterior probability of derogation",
+    fill = "Internal movement measures"
+  ) +
+  theme_pandem()
+```
+
+## Table
+
+```{r}
+#| label: tbl-results-full-derogations
+
+notes <- paste(
+  "Note: Estimates are median posterior odds ratios from logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+m_tbl_derogations |> 
+  set_names(NULL) |>
+  modelsummary(
+    exponentiate = TRUE,
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.4, rep(0.3, 2))
+  ) |> 
+  group_tt(j = list("ICCPR derogation filed" = 2:3))
+```
+
+
+# Explaining restrictions (H~3~)
+
+## Internal movement restrictions
+
+::: {.callout-tip}
+### Quick interpretation
+
+States with no backsliding that did not derogate were most likely to have no internal movement restrictions
+
+Non-backsliding states that derogated look roughly like backsliding states that didn't derogate—similar probabilities of severity of internal movement measures. 
+
+Backsliding states that derogated were overwhelmingly likely to have restrictions in place.
+:::
+
+```{r}
+#| label: fig-restrictions-movement
+
+preds_movement <- m_restrictions$m_restrict_movement |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_movement, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_movement, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Internal movement measures") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "top", legend.position = "top")
+```
+
+## Public transportation restrictions
+
+::: {.callout-tip}
+### Quick interpretation
+
+Non-backsliding states that didn't derogate are more likely to have no public transportation measures; non-backsliding states that did derogate were most likely to recommend or require closing
+
+Backsliding states have similar probabilities of public transportation measures across derogation status—no substantial difference between derogating and non-derogating states
+:::
+
+```{r}
+#| label: fig-restrictions-pubtrans
+
+preds_pubtrans <- m_restrictions$m_restrict_pubtrans |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_pubtrans, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_pubtrans, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Public transportation measures") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "top", legend.position = "top")
+```
+
+## Stay at home restrictions
+
+::: {.callout-tip}
+### Quick interpretation
+
+Non-backsliding states that didn't derogate are more likely to have no stay at home measures
+
+Non-backsliding states that derogated look roughly like backsliding states that didn't derogate—similar probabilities of severity of stay at home measures.
+
+Backsliding states that derogated were overwhelmingly likely to have restrictions in place.
+:::
+
+```{r}
+#| label: fig-restrictions-stayhome
+
+preds_stayhome <- m_restrictions$m_restrict_stayhome |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_stayhome, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_stayhome, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)], guide = guide_legend(nrow = 2)) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Stay at home measures") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "top", legend.position = "top")
+```
+
+## Table
+
+```{r}
+#| label: tbl-results-full-restrictions
+
+notes <- paste(
+  "Note: Estimates are median posterior odds ratios from ordered logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+m_tbl_restrictions |> 
+  set_names(c("Movement", "Close public transit", "Stay at home")) |> 
+  modelsummary(
+    exponentiate = TRUE,
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.3, rep(0.23, 3))
+  )
+```
+
+
+# Explaining COVID-19 economic policies (no hypotheses)
+
+## Income support
+
+::: {.callout-tip}
+### Quick interpretation
+
+Non-backsliding states have the same patterns in the probability of different types of income support regardless of derogations.
+
+Among backsliding states, those that didn't derogate are have a nearly 100% chance of providing no income support; those that did derogate were more likely to provide some level of income support than non-backsliding states.
+:::
+
+```{r}
+#| label: fig-econ-income
+
+preds_econ_income <- m_econ$m_econ_income |> 
+  epred_draws(
+    datagrid(model = m_econ$m_econ_income, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_econ_income, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = fct_rev(.category)), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)], guide = guide_legend(nrow = 3)) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Income support") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "top", legend.position = "top")
+```
+
+## Debt relief
+
+::: {.callout-tip}
+### Quick interpretation
+
+Non-backsliding states that derogated were more likely than non-derogating states to provide broad debt relief.
+
+Backsliding states that didn't derogate had a nearly 100% chance of providing broad debt relief while those that derogated roughly match the patterns of non-backsliding derogating states.
+
+For backsliders this is the reverse of the income support finding, but that's most likely because the handful of derogating backsliders all used the same policies: no income support, yes debt relief.
+:::
+
+```{r}
+#| label: fig-econ-debt
+
+preds_econ_debt <- m_econ$m_econ_debt |> 
+  epred_draws(
+    datagrid(model = m_econ$m_econ_debt, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_econ_debt, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = fct_rev(.category)), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)], guide = guide_legend(nrow = 1)) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Debt relief") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## Table
+
+```{r}
+#| label: tbl-results-full-econ
+
+notes <- paste(
+  "Note: Estimates are median posterior odds ratios from ordered logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+m_tbl_econ |> 
+  set_names(c("Income support", "Debt relief")) |> 
+  modelsummary(
+    exponentiate = TRUE,
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.4, rep(0.3, 2))
+  )
+```
+
+
+# Explaining COVID-19 human rights violations (H~4~ and H~5~)
+
+## Discriminatory policy
+
+::: {.callout-tip}
+### Quick interpretation
+
+Among non-backsliding states, derogation seems to matter a lot. Both derogators are non-derogators are most likely to not use discriminatory policies, but those that don't derogate have non-trivial probabilities of minor and major discriminatory policies while those that do derogate have a nearly 100% chance of no discriminatory policies.
+
+Among backsliders, those that derogated also have essentially a 100% chance of no discriminatory policies, while those that didn't derogate have a nearly 100% chance of major discrimination. 
+:::
+
+```{r}
+#| label: fig-hr-discrim
+
+preds_hr_discrim <- m_hr$m_hr_discrim |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_discrim, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_hr_discrim, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Discrimintaory policy") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## Non-derogable rights
+
+::: {.callout-tip}
+### Quick interpretation
+
+Among non-backsliding states, derogation again to matter a lot. Both derogators are non-derogators are most likely to not violate non-derogable rights, but those that didn't derogate have a higher probability of major violations. Those that do derogate have a nearly 100% chance of no violations.
+
+Backsliders have a nearly 100% chance of violating non-derogable rights regardless of derogation.
+:::
+
+```{r}
+#| label: fig-hr-ndrights
+
+preds_hr_ndrights <- m_hr$m_hr_ndrights |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_ndrights, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+preds_hr_ndrights_plot <- bind_rows(
+  preds_hr_ndrights |> mutate(.category = "Major"),
+  preds_hr_ndrights |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |> 
+  mutate(.category = factor(.category, levels = c("None", "Major"), ordered = TRUE))
+
+ggplot(preds_hr_ndrights_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Abusive enforcement") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## Abusive enforcement
+
+::: {.callout-tip}
+### Quick interpretation
+
+*This one is interesting and weird?*
+
+Among non-backsliding states, derogation again matters, but it's less protective here than for the other human rights issues. Non-derogators have the highest probability of no abusive enforcement (75%ish), with low probabilities of higher levels. Derogators, on the other hand, see a lot more variation in abusive enforcement, with only a 50%ish percent chance of no abuse (and the other levels spread across the other 50%).
+
+For backsliding states, the same pattern holds. Non-derogating backsliding states look basically like non-derogating non-backsliders, just with more uncertainty (with a 75%ish probability of no abusive enforcement). Derogating backsliders only have a 25%ish chance of no abuse—the other levels are spread across the remaining 75%.
+
+Derogation enables more abusive enforcement?
+:::
+
+```{r}
+#| label: fig-hr-abusive
+
+preds_hr_abusive <- m_hr$m_hr_abusive |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_abusive, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_hr_abusive, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Abusive enforcement") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## No time limited measures
+
+::: {.callout-tip}
+### Quick interpretation
+
+For non-backsliders, among non-derogators there's a 75%ish chance of not not having time limited measures (i.e. having time limited measures; the good outcome); for derogators that jumps to 90%ish.
+
+(This makes sense since derogations require specified time limits.)
+
+For backsliders, there's a 100% chance of having time limited measures for both derogators and non-derogators.
+:::
+
+```{r}
+#| label: fig-hr-nolimit
+
+preds_hr_nolimit <- m_hr$m_hr_nolimit |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_nolimit, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+preds_hr_nolimit_plot <- bind_rows(
+  preds_hr_nolimit |> mutate(.category = "Moderate"),
+  preds_hr_nolimit |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |> 
+  mutate(.category = factor(.category, levels = c("None", "Moderate"), ordered = TRUE))
+
+ggplot(preds_hr_nolimit_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "No time limited measures") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## Media restrictions
+
+::: {.callout-tip}
+### Quick interpretation
+
+For non-backsliders, derogations help; non-derogators have only a 25% chance of no media restrictions and a 55%ish chance of major media restrictions.
+
+For backsliders, derogations don't do anything—there's a 100% chance of major media restrictions for both derogators and non-derogators.
+:::
+
+```{r}
+#| label: fig-hr-media
+
+preds_hr_media <- m_hr$m_hr_media |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_media, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("No backsliding", "Backsliding"), ordered = TRUE)
+  )
+
+ggplot(preds_hr_media, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative outcome probabilities",
+    fill = "Media restrictions") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = strip_nested(background_x = list(element_rect(fill = "grey92"), NULL), by_layer_x = TRUE),
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme(legend.title.position = "left", legend.position = "top")
+```
+
+## Table
+
+```{r}
+#| label: tbl-results-full-hr
+
+notes <- paste(
+  "Note: Estimates are median posterior odds ratios from logistic and ordered logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+m_tbl_hr |> 
+  set_names(
+    c("Discriminatory policy", "Non-derogable rights", 
+      "Abusive enforcement", "No time limits", "Media restrictions"
+    )
+  ) |>
+  modelsummary(
+    exponentiate = TRUE,
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.2, rep(0.16, 5))
+  )
+```

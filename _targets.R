@@ -7,6 +7,13 @@ options(
   dplyr.summarise.inform = FALSE
 )
 
+# Bayesian stuff
+suppressPackageStartupMessages(library(brms))
+options(
+  mc.cores = 4,
+  brms.backend = "cmdstanr"
+)
+
 set.seed(900991)  # From random.org
 
 # This hardcodes the absolute path in _targets.yaml, so to make this more
@@ -44,6 +51,24 @@ list(
   ## Process and clean data ----
   tar_target(derog, clean_derog(derog_back_raw)),
   
+  ## Graphics ----
+  tar_target(graphic_functions, lst(theme_pandem, set_annotation_fonts, clrs)),
+  
   ## Model things ----
-  tar_target(modelsummary_functions, lst(coef_map, gof_map, tidy_custom.polr))
+  tar_target(modelsummary_functions, lst(coef_map, gof_map)),
+  
+  tar_target(m_derogations, f_derogations(derog)),
+  tar_target(m_tbl_derogations, build_modelsummary(m_derogations)),
+  
+  tar_target(m_restrictions, f_restrictions(derog)),
+  tar_target(m_tbl_restrictions, build_modelsummary(m_restrictions)),
+  
+  tar_target(m_econ, f_econ(derog)),
+  tar_target(m_tbl_econ, build_modelsummary(m_econ)),
+  
+  tar_target(m_hr, f_hr(derog)),
+  tar_target(m_tbl_hr, build_modelsummary(m_hr)),
+  
+  tar_target(m_treaty, f_treaty(derog)),
+  tar_target(m_tbl_treaty, build_modelsummary(m_treaty))
 )
