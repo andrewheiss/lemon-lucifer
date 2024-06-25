@@ -44,6 +44,9 @@ tar_source()
 # Pipeline ----------------------------------------------------------------
 list(
   ## Raw data files ----
+  tar_target(daily_data_raw_file,
+    here_rel("data", "raw_data", "daily_panel.rds"),
+    format = "file"),
   tar_target(derog_back_raw,
     here_rel("data", "raw_data", "JHR Symposium HR and DB 4 30 24 stata data.dta"),
     format = "file"),
@@ -51,13 +54,30 @@ list(
     here_rel("data", "raw_data", "ne_110m_admin_0_countries",
       "ne_110m_admin_0_countries.shp"),
     format = "file"),
+  tar_target(treaty_actions_raw_file,
+    here_rel("data", "raw_data", "Treaty Action Data for Graphs.xlsx"),
+    format = "file"),
   
   ## Process and clean data ----
   tar_target(derog, clean_derog(derog_back_raw)),
+  tar_target(daily_data, readRDS(daily_data_raw_file)),
 
   tar_target(world_map, load_world_map(naturalearth_raw_file)),
-  tar_target(derog_count, make_derog_count(derog)),
+  tar_target(derog_count, make_derog_count(daily_data)),
   tar_target(map_with_data, make_map_data(derog, derog_count, world_map)),
+  
+  tar_target(
+    action_state_type,
+    readxl::read_excel(treaty_actions_raw_file, sheet = "HR Treaty Action by St and Type")
+  ),
+  tar_target(
+    action_treaty,
+    readxl::read_excel(treaty_actions_raw_file, sheet = "Treaty Actions by Treaty")
+  ),
+  tar_target(
+    action_non_derog,
+    readxl::read_excel(treaty_actions_raw_file, sheet = "Non-Derogation Actions Filed")
+  ),
   
   ## Graphics ----
   tar_target(graphic_functions, lst(theme_pandem, set_annotation_fonts, clrs)),

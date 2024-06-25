@@ -41,11 +41,13 @@ tar_config_set(
   script = here::here("_targets.R")
 )
 
-tar_load(map_with_data)
+tar_load(c(map_with_data, action_state_type, action_treaty, action_non_derog))
 invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
 invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
 ```
 
+
+# Map of derogations
 
 ```{r}
 #| label: fig-derogation-map
@@ -76,6 +78,8 @@ ggplot() +
   )
 ```
 
+# Map of backsliding
+
 ```{r}
 #| label: fig-panback-map
 #| fig-width: 6.5
@@ -101,4 +105,87 @@ ggplot() +
     legend.position = "bottom",
     legend.justification = "center"
   )
+```
+
+# Treaty actions by state and type
+
+```{r}
+#| label: fig-treaty-action-state-type
+#| fig-width: 6.5
+#| fig-height: 4
+
+plot_action_state_type <- action_state_type |> 
+  select(State, Total = `Treaty Action Count`, Derogation, Other) |>
+  pivot_longer(cols = -State, names_to = "type", values_to = "count") |> 
+  arrange(desc(type), desc(count)) |> 
+  mutate(State = fct_inorder(State))
+
+panels <- plot_action_state_type |> 
+  filter(type == "Total") |> 
+  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |> 
+  select(State, panel)
+
+plot_action_state_type |> 
+  filter(type != "Total") |> 
+  left_join(panels, by = join_by(State)) |> 
+  ggplot(
+    aes(x = count, y = fct_rev(State), fill = fct_rev(type))
+  ) +
+  geom_col() + 
+  scale_fill_manual(values = clrs[c(3, 6)], guide = guide_legend(reverse = TRUE)) +
+  labs(x = "Total treaty actions between March 2020–June 2021", y = NULL, fill = NULL) +
+  facet_wrap(vars(panel), scales = "free_y") +
+  theme_pandem() +
+  theme(strip.text = element_blank())
+```
+
+
+# Treaty actions by treaty
+
+```{r}
+#| label: tbl-treaty-action-treaty
+
+action_treaty |> 
+  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |> 
+  group_by(`Number of Actions`) |> 
+  summarize(Treaties = str_flatten(Treaty, collapse = "; ")) |> 
+  ungroup() |> 
+  arrange(desc(`Number of Actions`)) |> 
+  tt(width = c(0.2, 0.8)) |> 
+  style_tt(j = 1:2, align = "l") |> 
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+```{r}
+#| label: fig-treaty-action-treaty
+#| fig-width: 6.5
+#| fig-height: 5
+
+action_treaty |> 
+  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |> 
+  mutate(panel = ifelse(row_number() >= 11, 1, 2)) |> 
+  ggplot(aes(x = `Number of Actions`, y = Treaty)) +
+  geom_col(fill = clrs[5]) +
+  scale_y_discrete(labels = label_wrap(35)) +
+  labs(x = "Number of actions", y = NULL) +
+  facet_wrap(vars(panel), scales = "free_y") +
+  theme_pandem() +
+  theme(strip.text = element_blank())
+```
+
+# Non-derogation actions
+
+```{r}
+#| label: fig-treaty-non-derog
+#| fig-width: 6.5
+#| fig-height: 2.25
+
+action_non_derog |> 
+  mutate(Action = fct_reorder(`Treaty Action`, Count)) |> 
+  ggplot(aes(x = Count, y = Action)) +
+  geom_col(fill = clrs[3]) +
+  labs(x = "Number of non-derogation actions", y = NULL) +
+  theme_pandem()
 ```
