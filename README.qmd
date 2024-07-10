@@ -23,8 +23,8 @@ abstract <- yaml_metadata$abstract
 
 # `r title`
 
-[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark College
-[Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State University
+[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark College  
+[Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State University  
 [Andrew Heiss](https://www.andrewheiss.com/) • Andrew Young School of Policy Studies • Georgia State University
 
 <!-- badges: start -->
