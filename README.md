@@ -5,11 +5,9 @@
 # Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic
 
 [Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark
-College  
-[Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State
-University  
-[Andrew Heiss](https://www.andrewheiss.com/) • Andrew Young School of
-Policy Studies • Georgia State University
+College [Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona
+State University [Andrew Heiss](https://www.andrewheiss.com/) • Andrew
+Young School of Policy Studies • Georgia State University
 
 <!-- badges: start -->
 <!-- badges: end -->
@@ -18,11 +16,31 @@ Policy Studies • Georgia State University
 
 ## Abstract
 
-TODO
+Did states misuse international legal emergency provisions during the
+COVID-19 pandemic to justify human rights abuse or did they follow
+international human rights law? Many governments restricted citizens’
+freedom of movement, association, and assembly during the crisis,
+raising questions about states’ commitments to international human
+rights law. Some states used derogations to communicate temporary
+suspension of international legal provisions in a proportional and
+non-discriminatory manner, while others did not. We explore the dynamics
+of democratic backsliding and derogation use during the pandemic. We
+find that backsliding states were more likely to issue human rights
+treaty derogations. These derogations had mitigating effects once
+issued. Backsliding states that issued derogations were more likely to
+communicate restrictions and were less likely to issue abusive and
+discriminatory policy during the pandemic. Derogations helped temper
+abuse in states not experiencing backsliding. However, derogations did
+not always protect against abuse and media transparency in backsliding
+states. These results lend support to the use of flexibility mechanisms
+in international law and find that most states did not use emergency
+derogations to heighten human rights violations. The study contributes
+to the understanding of how international legal measures may help
+mitigate elements of democratic backsliding during times of crisis.
 
 ------------------------------------------------------------------------
 
-## 🍋😈: Note on “lemon lucifer” project name
+## 🍋👿: Note on “lemon lucifer” project name
 
 Because project titles change all the time with revisions, rewriting,
 and peer review, we used [{codename}](http://svmiller.com/codename/) to

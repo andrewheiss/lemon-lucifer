@@ -1,5 +1,916 @@
 ---
 title: "Methods"
+bibliography: ../manuscript/references.json
+csl: ../manuscript/csl/apa.csl
+format:
+  html:
+    code-tools: false
+    include-in-header: 
+      - text: |
+          <style>
+          .table th {
+            font-weight: bold
+          }
+          </style>
 ---
 
-TODO
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%", 
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(tidybayes)
+library(modelsummary)
+library(marginaleffects)
+library(scales)
+library(glue)
+library(tinytable)
+library(ggh4x)
+library(ggtext)
+library(patchwork)
+library(targets)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+tar_load(c(derog, action_state_type))
+tar_load(c(m_derogations, m_tbl_derogations))
+tar_load(c(m_restrictions, m_tbl_restrictions))
+tar_load(c(m_hr, m_tbl_hr))
+
+invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
+invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+
+set_annotation_fonts()
+
+label_pp <- function(x) {
+  scales::label_number(accuracy = 1, scale = 100, 
+    suffix = " pp.", style_negative = "minus")(x)
+}
+
+label_pp_small <- label_number(accuracy = 0.1, scale = 100, suffix = " pp.", style_negative = "minus")
+
+label_scale_pp <- label_number(accuracy = 0.1, scale = 100, style_negative = "minus")
+
+line_divider <- grid::linesGrob(
+  x = c(0, 1), y = c(0.5, 0.5), 
+  gp = grid::gpar(col = "grey80", lty = "dashed", lwd = 0.75)
+)
+
+line_divider_v <- grid::linesGrob(
+  x = c(0.5, 0.5), y = c(0, 1), 
+  gp = grid::gpar(col = "grey80", lty = "dashed", lwd = 0.75)
+)
+
+nested_settings <- strip_nested(
+  background_x = list(element_rect(fill = "grey92"), NULL), 
+  text_x = list(NULL, element_text(size = rel(0.87))), 
+  by_layer_x = TRUE
+)
+
+nested_settings_diffs <- strip_nested(
+  background_x = list(element_rect(fill = "grey92"), element_rect(fill = "grey82")), 
+  by_layer_x = TRUE,
+  bleed = TRUE
+)
+
+theme_fuzzy_bar <- theme(
+  strip.text = element_text(size = rel(0.75)),
+  legend.title.position = "top", 
+  legend.position = "top", 
+  legend.title = element_text(size = rel(1)),
+  legend.background = element_rect(),
+  plot.tag.position = c(0, 1),
+  plot.tag = element_text(size = rel(0.9))
+)
+
+theme_diffs <- theme(
+  strip.background = element_rect(fill = "grey92"),
+  strip.text = element_text(size = rel(0.65)),
+  plot.title = element_text(size = rel(0.9)),
+  plot.tag.position = c(0, 1),
+  plot.tag = element_text(size = rel(0.9))
+)
+
+calc_fuzzy_labs <- function(preds, filter_small = TRUE) {
+  preds |>
+    group_by(.category, derogation_ineffect, panbackdichot) |> 
+    median_hdci(.epred) |> 
+    arrange(desc(.category)) |>
+    group_by(derogation_ineffect, panbackdichot) |>
+    mutate(
+      y_end = cumsum(.epred),
+      y_start = lag(y_end, default = 0),
+      y = y_end - ((y_end - y_start) / 2),
+      prob_nice = scales::label_percent(accuracy = 0.1)(.epred),
+      prob_ci_nice = case_when(
+        filter_small & .epred <= 0.05 ~ NA_character_,
+        round(.lower, 2) == round(.upper, 2) ~ glue("≈{label_percent(accuracy = 1)(.upper)}"),
+        .default = glue("{ymin}–{ymax}", 
+          ymin = label_number(accuracy = 1, scale = 100)(.lower),
+          ymax = label_percent(accuracy = 1)(.upper)
+        )
+      )
+    ) |> 
+    mutate(
+      # x = as.integer(seq(485, 15, length.out = n())),
+      x = 250,
+      # x = case_match(x, 328 ~ 171, 171 ~ 328, .default = x),
+      hjust = 0.5,
+      # hjust = case_match(x, 15 ~ 0, 485 ~ 1, .default = 0.5),
+      y = case_when(
+        y <= 0.06 ~ 0.06, 
+        y >= 0.94 ~ 0.94,
+        .default = y
+      )
+    ) |> 
+    group_by(prob_ci_nice, derogation_ineffect, panbackdichot) |> 
+    slice(1) |> 
+    ungroup()
+}
+```
+
+
+# Methods and data
+
+We first quantitatively explore the dynamics between democratic backsliding, human rights treaty activity, and human rights behavior by creating a set of Bayesian regression models and generating predictions for typical or average countries, which allows us to better isolate the associations between different elements of state behavior. We include three sets of models that examine (1) the probability of treaty derogation during COVID-19, (2) the probabilities of different types of COVID-19 policy responses, and (3) the probabilities of different types of pandemic-era human rights responses. We look at the results of all three sets of models across four key conditions: states that did and did not face the risk of democratic backsliding and states that did and did not derogate from treaty obligations.
+
+## Variables included in models
+
+We use weekly data from March 11, 2020 to June 30, 2021 for `r n_distinct(derog$country_name)` countries during the first 69 weeks of the pandemic. @tbl-data-sources lists the main variables we used across our models. To measure democratic backsliding, we use the Pandemic Backsliding Index (PanBack) from the Varieties of Democracy (V-Dem) project [@vdem-v12; @vdem-pandem]. PanBack measures the risk of democratic backsliding specifically during the pandemic and incorporates data from both V-Dem's Liberal Democracy Index and the Pandemic Violations of Democratic Standards Index (PanDem), which assesses how state responses to the pandemic violated democratic standards, based on the severity of seven different kinds of violations: discriminatory measures, violations of non-derogable rights, abusive enforcement, no time limits, limits on the legislature, official disinformation campaigns, and restrictions on media freedom. PanBack ranges from 0 to 1, with high values representing greater risk of backsliding. Following V-Dem, we dichotomize these values and consider PanBack scores above 0.3 as high risk.
+
+We measure treaty activity with a binary indicator of whether a state had formally suspended its ICCPR treaty obligations through derogation during a given week. We collected and coded this data from the United Nations Treaty Collection [@UnitedNations:2023]. To measure other treaty actions during this period, we also collected all treaty actions issued through the United Nations between March 2020 and June 2021. Examining these treaty actions as a dependent variable allows us to test whether democratic backsliding states participated with international law, broadly, in different ways from their counterparts and/or had a unique set of behaviors with more critical legal actions such as derogations.
+
+Finally, we include several other variables that are associated with both pandemic-era backsliding and derogations. We use four measures of the severity of the pandemic each week: new cases, cumulative cases, new deaths, and cumulative deaths [@WorldHealthOrganization:2023]. We also include weekly measures of specific government public health policies [@HaleAngristGoldszmidt:2021] and quarterly measures of the severity of human rights and policy outcomes [@vdem-pandem]. We capture a state's general respect for the rule of law and transparency in enforcement with V-Dem's Rule of Law Index. Because this value is only reported annually, it acts like a country-level fixed effect in our models, representing the overall level of respect for the rule of law in a state over time. 
+
+```{r tbl-data-sources}
+#| tbl-cap: Sources for variables in quantitative analysis
+# Backsliding
+# Treaty activity
+# Pandemic severity
+# Domestic governance
+# Government responses
+tribble(
+  ~Variable,                                                    ~Description,                                                   ~Source,
+  "Pandemic Backsliding Index (PanBack)",                       "0–1; higher values represent greater risk of backsliding; ≥ 0.3 considered high risk",     "Varieties of Democracy PanDem",
+  "ICCPR derogation",                                           "Binary indicator",                                             "UN Treaty Collection",
+  "New and cumulative COVID deaths and cases",                  "Counts",                                                       "World Health Organization",
+  "Emergency public health measures",                           "Binary indicator",                                             "Oxford COVID-19 Government Response Tracker",
+  "Human rights and policy outcomes",                           "Ordered categories for the severity of abuses",                "Varieties of Democracy PanDem",
+  "Rule of law index",                                          "0–1; higher values represent greater respect for rule of law", "Varieties of Democracy"
+) |>
+  tt(width = c(35, 45, 20)) |>
+  group_tt(i = list(
+    "Democratic backsliding" = 1,
+    "Treaty activity" = 2,
+    "Other variables" = 3
+  ), indent = 0) |>
+  style_tt(j = 1:3, align = "l") |> 
+  style_tt(i = c(1, 4, 6), bold = TRUE, background = "#e6e6e6", align = "l") |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+
+
+## Modeling strategy
+
+As our data represents a complete or apparent sample (Berk, Western, and Weiss 1995) of all countries during the pandemic, we use a Bayesian approach to model the probabilities of the various outcomes and better estimate the uncertainty in the model parameters, which in turn allows us to better explore the uncertainty associated with state behavior during the pandemic. We use weakly informative priors (Gelman et al. 2008) for all model coefficients to keep estimates within realistic ranges and allow for reasonable uncertainty in parameter estimates—we include detailed specifications of our models, priors, and sampling strategy in the appendix. To account for country-level differences in pandemic responses over time, we include country fixed effects and a weekly time trend.
+
+For binary outcomes, we use logistic regression; for categorical outcomes, we use ordered logistic regression. Both of these families of models provide coefficients on a logged odds scale, which can make interpretation difficult. To aid in the interpretation of results, we calculate conditional predicted probabilities by holding all explanatory variables constant (representing a typical country/week) and varying only derogation status and backsliding risk. We then calculate the contrasts between these predicted probabilities to determine the average differences associated with derogations and backsliding. We present these predicted probabilities graphically where possible, and we include the complete log-odds-scale results in Appendix Tables X, X, and X. Rather than reporting individual point estimates, we report 95% credible intervals. As an analogue to traditional frequentist *p*-values, we report the posterior probability that the predicted contrasts between derogation status and/or backsliding risk are above or below zero.
+
+# Analysis
+
+## Explaining COVID-19 derogations
+
+We first explore our first hypothesis: that backsliding states are more likely to issue derogations from international human rights treaties due to concerns over international reputations and domestic legitimacy. @fig-derog-coefs presents the odds ratios from a model predicting ICCPR derogations (complete results are in Appendix Table X). States that experienced pandemic backsliding were nearly four times more likely to file derogations ($e^\beta = 3.84; p(e^\beta \neq 1) = 0.94$). This is distinct from states with strong domestic institutions as measured by the rule of law index, which was positively associated with the probability of derogation, but not statistically significant ($e^\beta = 1.57; p(e^\beta \neq 1) = 0.85$). Looking at the measures of health crisis, a one standard deviation increase in new and cumulative COVID cases is associated with a 74% and 87% decrease in the likelihood of derogation, respectively. In contrast, a one standard deviation increase in new and cumulative COVID deaths is associated with a ≈50% higher and a nearly three times greater likelihood of derogation, respectively. Taken together, we see that more severe measures which captured increased intensity of both (1) democratic violations contributing to backsliding and (2) COVID deaths were the indicators that prompted states to issue pandemic-related derogations. States that experienced pandemic democratic backsliding were more likely to issue derogations to the ICCPR, limiting legal obligations to international human rights law during the pandemic.
+
+```{r}
+#| label: fig-derog-coefs
+#| fig-width: 6
+#| fig-height: 4.5
+#| fig-cap: "Odds ratios for coefficients from logistic regression model predicting the probability of derogation from the ICCPR"
+#| out-width: 100%
+
+coef_lookup <- tribble(
+  ~coef, ~coef_nice,
+  "b_panback", "Pandemic backsliding index (PanBack)",
+  "b_v2x_rule", "Rule of law index",
+  "b_new_cases_z", "New cases (standardized)",
+  "b_cumulative_cases_z", "Cumulative cases (standardized)",
+  "b_new_deaths_z", "New deaths (standardized)",
+  "b_cumulative_deaths_z", "Cumulative deaths (standardized)"
+) |> 
+  mutate(coef_nice = fct_inorder(coef_nice))
+
+m_derog_draws <- m_derogations$m_derogations_panback |> 
+  gather_draws(`^b_.*`, regex = TRUE) |>
+  filter(.variable %in% coef_lookup$coef) |>
+  left_join(coef_lookup, by = join_by(.variable == coef)) 
+
+p_vals <- m_derog_draws |> 
+  mutate(.value_exp = exp(.value)) |> 
+  group_by(coef_nice) |> 
+  reframe(
+    post_medians = median_hdci(.value_exp, .width = 0.95),
+    p_gt_0 = sum(.value_exp > 1) / n()
+  )  |>  
+  unnest(post_medians) |> 
+  mutate(p_neq_0 = ifelse(y >= 1, p_gt_0, 1 - p_gt_0)) |> 
+  mutate(p_neq_0_nice = glue("e<sup>β</sup> = {round(y, 2)}; <em>p</em>(e<sup>β</sup> ≠ 1) = {round(p_neq_0, 2)}"))
+
+m_derog_draws |> 
+  mutate(.value = exp(.value)) |>
+  ggplot(aes(x = .value, y = fct_rev(coef_nice))) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linewidth = 0.25, linetype = "21") +
+  geom_richtext(
+    data = p_vals, aes(x = y, label = p_neq_0_nice), 
+    size = 2.7, nudge_y = 0.35, label.size = 0.1, label.colour = "grey50") +
+  scale_x_log10() +
+  labs(
+    x = "Odds ratio", y = NULL, 
+    caption = str_wrap(
+      glue(
+        "Point shows posterior median;", "
+        thick lines show 80% credible interval;",
+        "thin black lines show 95% credible interval",
+        .sep = " "
+      ),
+      width = 60
+    )
+  ) +
+  theme_pandem() +
+  theme(panel.grid.major.y = element_blank())
+```
+
+To explore whether democratic backsliding had an overall impact on legal behavior toward international human rights treaties, we collected data on all treaty actions made from March 2020 to June 2021. Figure X descriptively shows the count of these human rights treaty actions by states, divided by type of filing. Derogations are overwhelming the most common type of international treaty action used in response to the pandemic. In the appendix, we run a model that predicts non-derogation actions using the same covariates used to predict ICCPR derogations, and find that the rule of law index is the only factor that significantly predicts non-derogation human rights treaty actions—backsliding is not substantially associated with other kinds of treaty actions. These findings together may indicate that for general, non-emergency legal actions, strong domestic rule of law and institutions generally matter for international legal behavior, but during times of crisis, other factors are at play. Backsliding behavior did not shape states' legal engagement with all human rights treaties—rather, states specifically and uniquely responded to the pandemic with targeted derogations.
+
+```{r}
+#| label: fig-treaty-action-state-type
+#| fig-cap: Counts of human rights treaty actions from March 2020–June 2021
+#| fig-width: 6.5
+#| fig-height: 4
+#| out-width: 100%
+
+plot_action_state_type <- action_state_type |> 
+  select(State, Total = `Treaty Action Count`, Derogation, Other) |>
+  pivot_longer(cols = -State, names_to = "type", values_to = "count") |> 
+  arrange(desc(type), desc(count)) |> 
+  mutate(State = fct_inorder(State))
+
+panels <- plot_action_state_type |> 
+  filter(type == "Total") |> 
+  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |> 
+  select(State, panel)
+
+plot_action_state_type |> 
+  filter(type != "Total") |> 
+  left_join(panels, by = join_by(State)) |> 
+  ggplot(
+    aes(x = count, y = fct_rev(State), fill = fct_rev(type))
+  ) +
+  geom_col() + 
+  scale_fill_manual(values = clrs[c(3, 6)], guide = guide_legend(reverse = TRUE)) +
+  labs(x = "Total treaty actions between March 2020–June 2021", y = NULL, fill = NULL) +
+  facet_wrap(vars(panel), scales = "free_y") +
+  theme_pandem() +
+  theme(strip.text = element_blank())
+```
+
+## Explaining COVID-19 restrictions
+
+Next, we examine how backsliding risk and derogation behavior are associated with different types of COVID-focused emergency policies and restrictions. @fig-restrictions-preds presents the conditional predicted probabilities of different levels of enforcement of internal movement, public transportation, and stay-at-home emergency measures in a typical country-week. A consistent pattern of government responses emerges across all three types of emergency measures. For internal movement (@fig-restrictions-preds, panel A), states with a low risk of backsliding that did not derogate had the highest probability (34–36%) of not imposing any travel restrictions and the lowest probability (44–46%) of having strict restrictions in place. Low-backsliding-risk states that derogated, in contrast, were substantially more likely to have restrictions in place and far less likely to have no or minimal restrictions. Among states with a high risk of backsliding, the pattern of the probability of imposing internal movement restrictions for non-derogating states appears relatively similar to the pattern in low-risk, derogating states, with a 56–64% chance of imposing restrictions for non-derogating states. For backsliding states that derogated, having restrictions in place is overwhelmingly the most likely outcome with a probability between 84–98%, with both no measures and recommendations to not travel only 1–8% likely. 
+
+```{r}
+#| label: fig-restrictions-preds
+#| fig-cap: Predicted probabilities of imposing emergency policies across states with low and high risks of democratic backsliding and derogation status over the first 15 months of the COVID-19 pandemic
+#| fig-width: 6.5
+#| fig-height: 8.5
+#| out-width: 100%
+
+preds_movement <- m_restrictions$m_restrict_movement |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_movement, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p1 <- ggplot(preds_movement, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_movement, filter_small = FALSE), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Internal movement measures", tag = "A") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+
+preds_pubtrans <- m_restrictions$m_restrict_pubtrans |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_pubtrans, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p2 <- ggplot(preds_pubtrans, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_pubtrans, filter_small = FALSE), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Public transportation measures", tag = "B") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+
+preds_stayhome <- m_restrictions$m_restrict_stayhome |> 
+  epred_draws(
+    datagrid(model = m_restrictions$m_restrict_stayhome, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p3 <- ggplot(preds_stayhome, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_stayhome, filter_small = FALSE), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)], guide = guide_legend(nrow = 2)) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Stay at home measures", tag = "C") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+(p1 / line_divider / p2 / line_divider / p3) + 
+  plot_layout(heights = c(0.31, 0.035, 0.31, 0.035, 0.31)) +
+  plot_annotation(
+    caption = str_wrap(
+      glue(
+        "The vertical slices of the bars depict 500 posterior samples;",
+        "the fuzziness represents the uncertainty in category boundaries.",
+        "95% credible intervals are shown as ranges in each category",
+        .sep = " "
+      ),
+      width = 100
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        margin = margin(t = 10), size = rel(0.7),
+        family = "Noto Sans", face = "plain"
+      )
+    )
+  )
+```
+
+The predicted probabilities for public transportation measures and stay-at-home restrictions demonstrate similar patterns (@fig-restrictions-preds, panels B and C). Non-backsliding, non-derogating states are the most likely to have no emergency measures (46–49% and 26–28%, respectively) and least likely to impose the harshest restrictions (14–16% and 4–5% respectively). For non-derogating states, having a treaty derogation in place is associated with a substantially higher probability of requiring the closing of transportation systems (30–38%; twice as likely) and requiring residents to stay home (21–28%; nearly two-thirds as likely). States with a high risk of backsliding that do not derogate appear roughly similar to non-backsliding, derogating states, while high-risk states that derogated are the most likely to require closing (42–68%) and the least likely to have no emergency measures at all (7–17%). Derogations appear particularly important for stay at home measures, which are the most individualized of the three emergency measures here (i.e. residents are constrained to their homes vs. prohibited from traveling between cities or using public transportation). More democratic, non-backsliding states appear hesitant to impose requirements to stay at home, and the states that did so backed up this emergency violation with a formal derogation. States at greater risk of backsliding were more willing to impose these restrictions without derogations, and those that derogated had the highest probability of strict emergency measures.
+
+There is a fairly consistent pattern across the four types of states: low-risk, non-derogating states have the lowest probability of imposing any emergency measures; high-risk, derogating states have the highest probability of imposing strict measures; low-risk, derogating states and high-risk, non-derogating states have roughly similar probabilities of the strictness of emergency measures. This could indicate that at a baseline, backsliding states were more willing to enact restrictions than their non-backsliding counterparts. It can also imply that both low-risk and high-risk states used derogations as a method to enact stronger pandemic measures, signaling that they were either taking the pandemic more seriously, or possibly using derogations as cover for using stronger restrictions [@ChaudhryComstockHeiss:2024].
+
+
+## Explaining COVID-19 human rights violations
+
+While there is a consistent pattern in how democratic backsliding and treaty actions are associated with pandemic-related emergency measures, there is much more variation in how democracy and derogations influence a state's respect for human rights during the pandemic. @fig-hr-preds presents the conditional predicted probabilities of different types of human rights violations in a typical country-week. 
+
+In H~2~ we hypothesized that states with a high risk of backsliding are more likely to abuse human rights. We find strong support for this claim. Earlier, we found that backsliding states had a higher baseline than non-backsliding states for imposing pandemic-related emergency measures. We find similar trends with human rights abuses. In all the human rights outcomes we observed, states with a high risk of backsliding have a substantially high probability of human rights abuses. For instance, states with a low risk of backsliding have more than a 90% probability of imposing discriminatory policies, while states with a high backsliding risk only have a 45–53% chance of seeing no discriminatory policies, and have high probabilities of minor, moderate, or major violations. Violations of non-derogable rights are exceptionally rare in non-backsliding states (with a 95–100% chance of no violations), while such abuses are predicted to occur a quarter to half of the time in backsliding states. States with a low risk of backsliding also see lower probabilities of abusive enforcement and media restrictions than their high-risk counterparts. Backsliding states are also more likely to not specify time limits for emergency measures, though the difference is less visually striking than the other human rights outcomes in @fig-hr-preds—for states at risk of backsliding are roughly 5 (for states with no derogations) or 14 (for states with derogations) percentage points more likely to have no time limits than states with low risk of backsliding ($p(\Delta > 0) = 1$). Perhaps not surprisingly, states that experienced backsliding were significantly more likely to use discriminatory policy and media restrictions during the pandemic. These are features of some of the democratic erosion points that backsliding entails.
+
+Derogation status interacts with backsliding risk—among states with a high risk of backsliding, derogation is associated with better outcomes for several of the human rights violations we modeled, providing partial support for our third hypothesis. Among states at risk of backsliding, those that do not derogate have a range of probable levels of implementing discriminatory policies (@fig-hr-preds, panel A) and only a 45–45% probability of no violations, while those that do derogate have a nearly 100% chance of avoiding discriminatory policies. The difference is similar for abusive enforcement (@fig-hr-preds, panel C). States at risk of backsliding are most likely to engage in minor (≈25%) or moderate (≈33%) abusive enforcement regardless of derogation status, but the distribution of possible outcomes shifts substantially at the extremes when states derogate. The risk of major abusive enforcement drops from 21–26% to 8–18% and the probability of no violations jumps from 16–21% to 25–45% for derogating states. The difference appears similar—though not significant—for the violation of non-derogable rights. Derogating backsliding states are roughly five percentage points less likely to violate these rights, but the difference is not significant ($p(\Delta > 0) = 0.75$).
+
+Derogation status also matters for the risk of not having time-limited emergency measures. For backsliding states, derogation is associated with a 4–20 percentage point higher probability of having time limited measures ($p(\Delta > 0) = 0.94$), while in non-backsliding states there is a 15–20 percentage point difference, which is larger and more precise ($p(\Delta > 0) = 1$). This difference can be directly attributable to derogations, since the derogation process requires that states specify time limits for their emergency measures.
+
+Some trends go against our expectations. Media restrictions are the only human rights outcome where derogations do not behave as expected for backsliding states—states that do not derogate have an 87–92% probability of major media restrictions and a 96–100% chance of major restrictions when derogating. We hypothesized that derogating and backsliding states would care about legitimation and reputation, but it seems that these concerns do not apply to censorship and media restrictions. Derogations are associated with better human rights outcomes in states with a low risk of backsliding for all measures except abusive enforcement, where the probabilities of minor, moderate, and major violations increase by 3–10 percentage points (@fig-hr-preds, panel C). This aligns with the findings of @ChaudhryComstockHeiss:2024, who speculate that principal-agent conflicts might be one mechanism for this reversal, where "where countries that follow correct human rights procedures end up enforcing emergency policies in a more abusive way," since lower-level public officials are responsible for carrying out emergency measures and are likely unaware of the implementation limits required by international law through the derogation process.
+
+```{r}
+#| label: fig-hr-preds
+#| fig-cap: Predicted probabilities of violating human rights across states with low and high risks of democratic backsliding and derogation status over the first 15 months of the COVID-19 pandemic
+#| fig-width: 9.5
+#| fig-height: 8.75
+#| out-width: 100%
+
+preds_hr_discrim <- m_hr$m_hr_discrim |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_discrim, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p1 <- ggplot(preds_hr_discrim, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = drop_na(calc_fuzzy_labs(preds_hr_discrim), prob_ci_nice), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Discriminatory policy", tag = "A") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+
+preds_hr_ndrights <- m_hr$m_hr_ndrights |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_ndrights, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+preds_hr_ndrights_plot <- bind_rows(
+  preds_hr_ndrights |> mutate(.category = "Major"),
+  preds_hr_ndrights |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |> 
+  mutate(.category = factor(.category, levels = c("None", "Major"), ordered = TRUE))
+
+p2 <- ggplot(preds_hr_ndrights_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = drop_na(calc_fuzzy_labs(preds_hr_ndrights_plot), prob_ci_nice), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Violation of non-derogable rights", tag = "B") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+
+preds_hr_abusive <- m_hr$m_hr_abusive |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_abusive, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p3 <- ggplot(preds_hr_abusive, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = drop_na(calc_fuzzy_labs(preds_hr_abusive), prob_ci_nice), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Abusive enforcement", tag = "C") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+preds_hr_nolimit <- m_hr$m_hr_nolimit |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_nolimit, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+
+preds_hr_nolimit_plot <- bind_rows(
+  preds_hr_nolimit |> mutate(.category = "Moderate"),
+  preds_hr_nolimit |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |> 
+  mutate(.category = factor(.category, levels = c("None", "Moderate"), ordered = TRUE))
+
+p4 <- ggplot(preds_hr_nolimit_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = drop_na(calc_fuzzy_labs(preds_hr_nolimit_plot), prob_ci_nice), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "No time limited measures", tag = "D") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+
+preds_hr_media <- m_hr$m_hr_media |> 
+  epred_draws(
+    datagrid(model = m_hr$m_hr_media, derogation_ineffect = unique, panbackdichot = unique), 
+    ndraws = 500, seed = 1234) |> 
+  ungroup() |> 
+  mutate(
+    derogation_ineffect = factor(derogation_ineffect, labels = c("No derogation", "Derogation"), ordered = TRUE),
+    panbackdichot = factor(panbackdichot, labels = c("Low backsliding risk", "High backsliding risk"), ordered = TRUE)
+  )
+
+p5 <- ggplot(preds_hr_media, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = drop_na(calc_fuzzy_labs(preds_hr_media), prob_ci_nice), 
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust), 
+    fill = scales::alpha("white", 0.4), label.size = 0, 
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Media restrictions", tag = "E") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+layout <- "
+AID
+FIG
+BIE
+HI#
+CI#
+"
+
+p1 + p2 + p3 + p4 + p5 + line_divider + line_divider + line_divider + line_divider_v +
+  plot_layout(
+    design = layout, 
+    heights = c(0.31, 0.035, 0.31, 0.035, 0.31),
+    widths = c(0.94, 0.02, 0.94)
+  ) +
+  plot_annotation(
+    caption = str_wrap(
+      glue(
+        "The vertical slices of the bars depict 500 posterior samples;",
+        "the fuzziness represents the uncertainty in category boundaries.",
+        "95% credible intervals are shown as ranges in each category",
+        .sep = " "
+      ),
+      width = 100
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        margin = margin(t = 10), size = rel(0.7),
+        family = "Noto Sans", face = "plain"
+      )
+    )
+  )
+```
+
+
+```{r}
+#| label: fig-hr-diffs
+#| fig-cap: Contrasts in predicted probabilities of violating human rights across states with low and high risks of democratic backsliding and derogation status over the first 15 months of the COVID-19 pandemic
+#| fig-width: 9.5
+#| fig-height: 8.75
+#| out-width: 100%
+
+diffs_hr_discrim <- bind_rows(
+  preds_hr_discrim |> 
+    group_by(panbackdichot, .category) |> 
+    compare_levels(.epred, by = derogation_ineffect, comparison = "control") |> 
+    ungroup(),
+  preds_hr_discrim |> 
+    group_by(derogation_ineffect, .category) |> 
+    compare_levels(.epred, by = panbackdichot, comparison = "control") |> 
+    ungroup()
+) |> 
+  mutate(
+    panbackdichot = fct_recode(
+      panbackdichot, 
+      "High − low backsliding risk" = "High backsliding risk - Low backsliding risk"
+    ),
+    panbackdichot = fct_relevel(
+      panbackdichot,
+      "Low backsliding risk", "High backsliding risk", "High − low backsliding risk"
+    )
+  )
+
+p1 <- diffs_hr_discrim |> 
+  ggplot(aes(x = .epred, y = fct_rev(.category), color = .category)) +
+  geom_vline(xintercept = 0, linewidth = 0.25, linetype = "21") +
+  stat_pointinterval() +
+  facet_nested_wrap(vars(panbackdichot, derogation_ineffect), strip = nested_settings_diffs) +
+  scale_x_continuous(labels = label_pp) +
+  scale_color_manual(values = clrs[c(7, 4, 2, 1)], guide = "none") +
+  labs(
+    x = NULL, y = NULL, 
+    title = "Discriminatory policy", tag = "A"
+  ) +
+  theme_pandem() +
+  theme_diffs
+
+
+diffs_hr_ndrights <- bind_rows(
+  preds_hr_ndrights_plot |> 
+    group_by(panbackdichot, .category) |> 
+    compare_levels(.epred, by = derogation_ineffect, comparison = "control") |> 
+    ungroup(),
+  preds_hr_ndrights_plot |> 
+    group_by(derogation_ineffect, .category) |> 
+    compare_levels(.epred, by = panbackdichot, comparison = "control") |> 
+    ungroup()
+) |> 
+  mutate(
+    panbackdichot = fct_recode(
+      panbackdichot, 
+      "High − low backsliding risk" = "High backsliding risk - Low backsliding risk"
+    ),
+    panbackdichot = fct_relevel(
+      panbackdichot,
+      "Low backsliding risk", "High backsliding risk", "High − low backsliding risk"
+    )
+  )
+
+p2 <- diffs_hr_ndrights |> 
+  ggplot(aes(x = .epred, y = fct_rev(.category), color = .category)) +
+  geom_vline(xintercept = 0, linewidth = 0.25, linetype = "21") +
+  stat_pointinterval() +
+  facet_nested_wrap(vars(panbackdichot, derogation_ineffect), strip = nested_settings_diffs) +
+  scale_x_continuous(labels = label_pp) +
+  scale_color_manual(values = clrs[c(7, 1)], guide = "none") +
+  labs(
+    x = NULL, y = NULL, 
+    title = "Non-derogable rights", tag = "B"
+  ) +
+  theme_pandem() +
+  theme_diffs
+
+
+diffs_hr_abusive <- bind_rows(
+  preds_hr_abusive |> 
+    group_by(panbackdichot, .category) |> 
+    compare_levels(.epred, by = derogation_ineffect, comparison = "control") |> 
+    ungroup(),
+  preds_hr_abusive |> 
+    group_by(derogation_ineffect, .category) |> 
+    compare_levels(.epred, by = panbackdichot, comparison = "control") |> 
+    ungroup()
+) |> 
+  mutate(
+    panbackdichot = fct_recode(
+      panbackdichot, 
+      "High − low backsliding risk" = "High backsliding risk - Low backsliding risk"
+    ),
+    panbackdichot = fct_relevel(
+      panbackdichot,
+      "Low backsliding risk", "High backsliding risk", "High − low backsliding risk"
+    )
+  )
+
+p3 <- diffs_hr_abusive |> 
+  ggplot(aes(x = .epred, y = fct_rev(.category), color = .category)) +
+  geom_vline(xintercept = 0, linewidth = 0.25, linetype = "21") +
+  stat_pointinterval() +
+  facet_nested_wrap(vars(panbackdichot, derogation_ineffect), strip = nested_settings_diffs) +
+  scale_x_continuous(labels = label_pp) +
+  scale_color_manual(values = clrs[c(7, 4, 2, 1)], guide = "none") +
+  labs(
+    x = NULL, y = NULL, 
+    title = "Abusive enforcement", tag = "C"
+  ) +
+  theme_pandem() +
+  theme_diffs
+
+
+diffs_hr_nolimit <- bind_rows(
+  preds_hr_nolimit_plot |> 
+    group_by(panbackdichot, .category) |> 
+    compare_levels(.epred, by = derogation_ineffect, comparison = "control") |> 
+    ungroup(),
+  preds_hr_nolimit_plot |> 
+    group_by(derogation_ineffect, .category) |> 
+    compare_levels(.epred, by = panbackdichot, comparison = "control") |> 
+    ungroup()
+) |> 
+  mutate(
+    panbackdichot = fct_recode(
+      panbackdichot, 
+      "High − low backsliding risk" = "High backsliding risk - Low backsliding risk"
+    ),
+    panbackdichot = fct_relevel(
+      panbackdichot,
+      "Low backsliding risk", "High backsliding risk", "High − low backsliding risk"
+    )
+  )
+
+p4 <- diffs_hr_nolimit |> 
+  ggplot(aes(x = .epred, y = fct_rev(.category), color = .category)) +
+  geom_vline(xintercept = 0, linewidth = 0.25, linetype = "21") +
+  stat_pointinterval() +
+  facet_nested_wrap(vars(panbackdichot, derogation_ineffect), strip = nested_settings_diffs) +
+  scale_x_continuous(labels = label_pp) +
+  scale_color_manual(values = clrs[c(7, 2)], guide = "none") +
+  labs(
+    x = NULL, y = NULL, 
+    title = "No time limited measures", tag = "D"
+  ) +
+  theme_pandem() +
+  theme_diffs
+
+
+diffs_hr_media <- bind_rows(
+  preds_hr_media |> 
+    group_by(panbackdichot, .category) |> 
+    compare_levels(.epred, by = derogation_ineffect, comparison = "control") |> 
+    ungroup(),
+  preds_hr_media |> 
+    group_by(derogation_ineffect, .category) |> 
+    compare_levels(.epred, by = panbackdichot, comparison = "control") |> 
+    ungroup()
+) |> 
+  mutate(
+    panbackdichot = fct_recode(
+      panbackdichot, 
+      "High − low backsliding risk" = "High backsliding risk - Low backsliding risk"
+    ),
+    panbackdichot = fct_relevel(
+      panbackdichot,
+      "Low backsliding risk", "High backsliding risk", "High − low backsliding risk"
+    )
+  )
+
+p5 <- diffs_hr_media |> 
+  ggplot(aes(x = .epred, y = fct_rev(.category), color = .category)) +
+  geom_vline(xintercept = 0, linewidth = 0.25, linetype = "21") +
+  stat_pointinterval() +
+  facet_nested_wrap(vars(panbackdichot, derogation_ineffect), strip = nested_settings_diffs) +
+  scale_x_continuous(labels = label_pp) +
+  scale_color_manual(values = clrs[c(7, 4, 2, 1)], guide = "none") +
+  labs(
+    x = NULL, y = NULL, 
+    title = "Media restrictions", tag = "E"
+  ) +
+  theme_pandem() +
+  theme_diffs
+
+p1 + p2 + p3 + p4 + p5 + line_divider + line_divider + line_divider + line_divider_v +
+  plot_layout(
+    design = layout, 
+    heights = c(0.31, 0.035, 0.31, 0.035, 0.31),
+    widths = c(0.94, 0.02, 0.94)
+  ) +
+  plot_annotation(
+    caption = str_wrap(
+      glue(
+        "Point shows posterior median;", "
+        thick lines show 80% credible interval;",
+        "thin black lines show 95% credible interval",
+        .sep = " "
+      ),
+      width = 150
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        margin = margin(t = 10), size = rel(0.7),
+        family = "Noto Sans", face = "plain"
+      )
+    )
+  )
+```
+
+```{r}
+make_diffs_tbl <- function(diffs) {
+  diffs_summary <- diffs |> 
+    group_by(panbackdichot, derogation_ineffect, .category) |> 
+    reframe(
+      post_medians = median_hdci(.epred, .width = 0.95),
+      p_gt_0 = sum(.epred > 0) / n()
+    )  |>  
+    unnest(post_medians)
+  
+  tbl_diffs <- diffs_summary |> 
+    mutate(
+      panbackdichot = str_replace(panbackdichot, " − ", "−"),
+      derogation_ineffect = str_replace(derogation_ineffect, " - ", "−")
+    ) |> 
+    mutate(cat1 = case_when(
+      str_detect(panbackdichot, "−") ~ panbackdichot,
+      str_detect(derogation_ineffect, "−") ~ derogation_ineffect,
+    )) |> 
+    mutate(cat2 = case_when(
+      !str_detect(panbackdichot, "−") ~ panbackdichot,
+      !str_detect(derogation_ineffect, "−") ~ derogation_ineffect,
+    )) |> 
+    mutate(group_label = as.character(glue("{cat2}: {cat1}"))) |> 
+    mutate(across(c(y, ymin, ymax), ~label_scale_pp(.))) |> 
+    mutate(ci = glue("[{ymin}, {ymax}]")) |> 
+    mutate(y_ci = paste(y, ci)) |> 
+    mutate(p_gt_0 = label_number(accuracy = 0.01)(p_gt_0))
+  
+  group_labels_rle <- rle(tbl_diffs$group_label)
+  group_labels <- set_names(
+    cumsum(group_labels_rle$lengths) - group_labels_rle$lengths + 1, 
+    group_labels_rle$values) |> as.list()
+  
+  tbl_diffs |> 
+    select(Severity = .category, `Median ∆` = y_ci, `p(∆ > 0)` = p_gt_0) |> 
+    tt() |> 
+    group_tt(i = group_labels)
+}
+
+
+make_diffs_tbl(diffs_hr_abusive)
+make_diffs_tbl(diffs_hr_discrim)
+```

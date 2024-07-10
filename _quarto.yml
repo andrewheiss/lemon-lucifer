@@ -1,25 +1,25 @@
 project:
   title: "Derogations and backsliding"
   type: website
-  
-  preview: 
+
+  preview:
     port: 3333
     browser: true
     watch-inputs: false
     navigate: true
-  
-  render: 
+
+  render:
     # Render all .qmd files
     - "**/*.qmd"
 
-    # Don't render anything in the manuscript folder because otherwise all the 
-    # output gets placed in _site/ only, which is annoying. Instead this folder 
-    # needs to be rendered separately, and *before* the overall website project 
+    # Don't render anything in the manuscript folder because otherwise all the
+    # output gets placed in _site/ only, which is annoying. Instead this folder
+    # needs to be rendered separately, and *before* the overall website project
     # (which is doable since this whole build process is orchestrated by targets)
     - "!manuscript/"
-  
+
   resources:
-    # But *do* place the outputs from the manuscript folders in the 
+    # But *do* place the outputs from the manuscript folders in the
     # rendered site folder
     - "manuscript/output"
 
@@ -29,9 +29,9 @@ execute:
 website:
   repo-url: "https://github.com/andrewheiss/lemon-lucifer"
   repo-actions: [edit, issue]
-  
+
   page-navigation: true
-  
+
   navbar:
     pinned: true
     background: info
@@ -63,16 +63,19 @@ website:
         - section: "Analysis"
           contents:
             - analysis/hypotheses.qmd
-            - analysis/misc-analysis.qmd
-            - analysis/methods.qmd
+            - analysis/analysis-misc.qmd
+            - analysis/analysis-derogations.qmd
+            - analysis/analysis-restrictions.qmd
+            - analysis/analysis-human-rights.qmd
         - section: "Symposium"
           contents:
             - analysis/models-for-symposium-workshop.qmd
         - section: "Other details"
           contents:
+            - analysis/model-details.qmd
             - analysis/targets.qmd
             - analysis/environment.qmd
-    
+
     - title: "Empty space lol"
 
   page-footer:
@@ -88,7 +91,7 @@ website:
 format:
   html:
     shift-heading-level-by: 1
-    theme: 
+    theme:
       - zephyr
       - html/custom.scss
     toc: true

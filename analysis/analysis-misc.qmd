@@ -1,15 +1,8 @@
 ---
-title: "Other analysis"
+title: "Miscellaneous analysis"
 format:
   html:
-    code-tools: false
-    include-in-header: 
-      - text: |
-          <style>
-          .table th {
-            font-weight: bold
-          }
-          </style>
+    code-fold: true
 ---
 
 ```{r}
@@ -17,7 +10,7 @@ format:
 #| include: false
 knitr::opts_chunk$set(
   # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
-  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%", 
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%",
   fig.align = "center", fig.retina = 3,
   collapse = TRUE
 )
@@ -46,11 +39,10 @@ invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
 invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
 ```
 
-
 # Map of derogations
 
 ```{r}
-#| label: fig-derogation-map
+#| label: figure-derogation-map
 #| fig-width: 6.5
 #| fig-height: 3.5
 #| out-width: 100%
@@ -62,7 +54,7 @@ ggplot() +
     linewidth = 0.1, color = "white"
   ) +
   coord_sf(crs = st_crs("+proj=robin"), datum = NA) +
-  scale_fill_binned(low = colorspace::lighten(clrs[1], amount = 0.8), 
+  scale_fill_binned(low = colorspace::lighten(clrs[1], amount = 0.8),
     high = clrs[1], na.value = "grey85",
     breaks = c(1, 5, 10, 15, 20),
     limits = c(1, 20),
@@ -81,7 +73,7 @@ ggplot() +
 # Map of backsliding
 
 ```{r}
-#| label: fig-panback-map
+#| label: figure-panback-map
 #| fig-width: 6.5
 #| fig-height: 3.5
 #| out-width: 100%
@@ -107,31 +99,33 @@ ggplot() +
   )
 ```
 
-# Treaty actions by state and type
+### Non-derogation treaty actions
 
 ```{r}
-#| label: fig-treaty-action-state-type
+#| label: figure-treaty-action-state-type
+#| fig-cap: Counts of human rights treaty actions from March 2020–June 2021
 #| fig-width: 6.5
 #| fig-height: 4
+#| out-width: 100%
 
-plot_action_state_type <- action_state_type |> 
+plot_action_state_type <- action_state_type |>
   select(State, Total = `Treaty Action Count`, Derogation, Other) |>
-  pivot_longer(cols = -State, names_to = "type", values_to = "count") |> 
-  arrange(desc(type), desc(count)) |> 
+  pivot_longer(cols = -State, names_to = "type", values_to = "count") |>
+  arrange(desc(type), desc(count)) |>
   mutate(State = fct_inorder(State))
 
-panels <- plot_action_state_type |> 
-  filter(type == "Total") |> 
-  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |> 
+panels <- plot_action_state_type |>
+  filter(type == "Total") |>
+  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |>
   select(State, panel)
 
-plot_action_state_type |> 
-  filter(type != "Total") |> 
-  left_join(panels, by = join_by(State)) |> 
+plot_action_state_type |>
+  filter(type != "Total") |>
+  left_join(panels, by = join_by(State)) |>
   ggplot(
     aes(x = count, y = fct_rev(State), fill = fct_rev(type))
   ) +
-  geom_col() + 
+  geom_col() +
   scale_fill_manual(values = clrs[c(3, 6)], guide = guide_legend(reverse = TRUE)) +
   labs(x = "Total treaty actions between March 2020–June 2021", y = NULL, fill = NULL) +
   facet_wrap(vars(panel), scales = "free_y") +
@@ -145,14 +139,14 @@ plot_action_state_type |>
 ```{r}
 #| label: tbl-treaty-action-treaty
 
-action_treaty |> 
-  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |> 
-  group_by(`Number of Actions`) |> 
-  summarize(Treaties = str_flatten(Treaty, collapse = "; ")) |> 
-  ungroup() |> 
-  arrange(desc(`Number of Actions`)) |> 
-  tt(width = c(0.2, 0.8)) |> 
-  style_tt(j = 1:2, align = "l") |> 
+action_treaty |>
+  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |>
+  group_by(`Number of Actions`) |>
+  summarize(Treaties = str_flatten(Treaty, collapse = "; ")) |>
+  ungroup() |>
+  arrange(desc(`Number of Actions`)) |>
+  tt(width = c(0.2, 0.8)) |>
+  style_tt(j = 1:2, align = "l") |>
   style_tt(
     bootstrap_class = "table table-sm"
   )
@@ -163,9 +157,9 @@ action_treaty |>
 #| fig-width: 6.5
 #| fig-height: 5
 
-action_treaty |> 
-  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |> 
-  mutate(panel = ifelse(row_number() >= 11, 1, 2)) |> 
+action_treaty |>
+  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |>
+  mutate(panel = ifelse(row_number() >= 11, 1, 2)) |>
   ggplot(aes(x = `Number of Actions`, y = Treaty)) +
   geom_col(fill = clrs[5]) +
   scale_y_discrete(labels = label_wrap(35)) +
@@ -182,8 +176,8 @@ action_treaty |>
 #| fig-width: 6.5
 #| fig-height: 2.25
 
-action_non_derog |> 
-  mutate(Action = fct_reorder(`Treaty Action`, Count)) |> 
+action_non_derog |>
+  mutate(Action = fct_reorder(`Treaty Action`, Count)) |>
   ggplot(aes(x = Count, y = Action)) +
   geom_col(fill = clrs[3]) +
   labs(x = "Number of non-derogation actions", y = NULL) +

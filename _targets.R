@@ -57,7 +57,7 @@ list(
   tar_target(treaty_actions_raw_file,
     here_rel("data", "raw_data", "Treaty Action Data for Graphs.xlsx"),
     format = "file"),
-  
+
   ## Process and clean data ----
   tar_target(derog, clean_derog(derog_back_raw)),
   tar_target(daily_data, readRDS(daily_data_raw_file)),
@@ -65,7 +65,7 @@ list(
   tar_target(world_map, load_world_map(naturalearth_raw_file)),
   tar_target(derog_count, make_derog_count(daily_data)),
   tar_target(map_with_data, make_map_data(derog, derog_count, world_map)),
-  
+
   tar_target(
     action_state_type,
     readxl::read_excel(treaty_actions_raw_file, sheet = "HR Treaty Action by St and Type")
@@ -78,25 +78,43 @@ list(
     action_non_derog,
     readxl::read_excel(treaty_actions_raw_file, sheet = "Non-Derogation Actions Filed")
   ),
-  
+
   ## Graphics ----
-  tar_target(graphic_functions, lst(theme_pandem, set_annotation_fonts, clrs)),
-  
+  tar_target(graphic_functions, lst(
+    theme_pandem, set_annotation_fonts, clrs, label_pp
+  )),
+  tar_target(diagnostic_functions, lst(plot_trace, plot_trank, plot_pp)),
+  tar_target(helper_functions, lst(
+    fmt_p_inline, fmt_coef, calc_preds, calc_preds_details, make_preds_inline,
+    calc_preds_diffs, calc_preds_diffs_details, calc_fuzzy_labs,
+    line_divider, line_divider_v, nested_settings, nested_settings_diffs,
+    theme_fuzzy_bar, theme_diffs, label_scale_pp, make_diffs_tbl
+  )),
+
   ## Model things ----
   tar_target(modelsummary_functions, lst(coef_map, gof_map)),
-  
+
   tar_target(m_derogations, f_derogations(derog)),
   tar_target(m_tbl_derogations, build_modelsummary(m_derogations)),
-  
+
   tar_target(m_restrictions, f_restrictions(derog)),
   tar_target(m_tbl_restrictions, build_modelsummary(m_restrictions)),
-  
-  tar_target(m_econ, f_econ(derog)),
-  tar_target(m_tbl_econ, build_modelsummary(m_econ)),
-  
+
   tar_target(m_hr, f_hr(derog)),
   tar_target(m_tbl_hr, build_modelsummary(m_hr)),
-  
-  tar_target(m_treaty, f_treaty(derog)),
-  tar_target(m_tbl_treaty, build_modelsummary(m_treaty))
+
+  ## Manuscript and analysis notebook ----
+  tar_quarto(manuscript, path = "manuscript", quiet = FALSE),
+
+  tar_quarto(website, path = ".", quiet = FALSE),
+  tar_target(deploy_script, here_rel("deploy.sh"), format = "file"),
+  tar_target(deploy, {
+    # Force a dependency
+    website
+    # Run the deploy script
+    if (Sys.getenv("UPLOAD_WEBSITES") == "TRUE") processx::run(paste0("./", deploy_script))
+  }),
+
+  ## Render the README ----
+  tar_quarto(readme, here_rel("README.qmd"))
 )

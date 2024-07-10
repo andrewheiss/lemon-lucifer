@@ -1,0 +1,435 @@
+---
+title: 'Online appendix for "Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic"'
+short-title: 'Online appendix for "Derogations and Backsliding"'
+author:
+- name: Suparna Chaudhry
+  affiliation: Lewis and Clark College
+  orcid: 0000-0003-3506-7590
+  url: https://www.suparnachaudhry.com/
+  email: schaudhry@lclark.edu
+- name: Audrey L. Comstock
+  affiliation: Arizona State University
+  orcid: 0000-0003-1772-5350
+  url: https://audreylcomstock.weebly.com/
+  email: audrey.comstock@asu.edu
+- name: Andrew Heiss
+  affiliation: Georgia State University
+  orcid: 0000-0002-3948-3914
+  url: https://www.andrewheiss.com
+  email: aheiss@gsu.edu
+date: 2024-06-30
+code-repo: "Access the code, data, and analysis at <https://github.com/andrewheiss/lemon-lucifer>"
+bibliography: references.json
+csl: csl/apa.csl
+link-citations: true
+crossref:
+  tbl-title: "Table&nbsp;A"
+  tbl-prefix: "Table&nbsp;A"
+  fig-title: "Figure&nbsp;A"
+  fig-prefix: "Figure&nbsp;A"
+toc: true
+toc-depth: 2
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+if (is.null(knitr::pandoc_to())) {
+  fmt_out <- "interactive"
+} else {
+  fmt_out <- knitr::pandoc_to()
+}
+
+knitr::opts_chunk$set(
+  echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "100%",
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(modelsummary)
+library(marginaleffects)
+library(scales)
+library(glue)
+library(tinytable)
+library(targets)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+tar_load(c(action_state_type, action_treaty, action_non_derog))
+tar_load(c(m_tbl_derogations, m_tbl_restrictions, m_tbl_hr))
+
+invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
+invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+```
+
+\clearpage
+
+# Modeling approach
+
+We use Stan `r cmdstanr::cmdstan_version()` [@stan] through R `r paste0(version$major, ".", version$minor)` [@rproject-4-4-0] and {brms} `r packageVersion("brms")` [@Burkner:2017] to estimate our models. We generate 4 MCMC chains for each model with 2,000 iterations in each chain, 1,000 of which are used for warmup. All chains converge; we assess convergence with visual inspection. Complete results from all the models, along with posterior predictive checks, goodness-of-fit measures, and prediction diagnostics are all available at a companion statistical analysis compendium at <https://doi.org/10.17605/OSF.IO/ANONYMIZED-FOR-NOW>.
+
+We use weakly informative priors [@GelmanJakulinPittau:2008] for our logistic and ordered logistic regression models. For consistency with prior specification, and for computation efficiency, we mean-center all nonbinary variables so that parameter estimates represent changes from the mean. For all $\beta$ terms in each of the models, we use a Student t distribution with a mean of 0 and a standard deviation of 3 (see @fig-prior). This keeps most parameter estimates around −5 to 5, with thicker tails that allow for some possibility of extreme values. These priors give more weight to realistic areas of parameter values and downweight values in unrealistic spaces. For instance, since logit-scale coefficient values greater than 4 or 5 are highly unlikely, our Student t prior puts more weight on smaller values. Additionally, weakly informative priors allow reasonable and considerable uncertainty in possible parameter estimates.
+
+```{r}
+#| label: fig-prior
+#| fig-cap: "Density plot of prior distribution for model parameters"
+#| fig-width: 3.5
+#| fig-height: 2.5
+#| out-width: "50%"
+#| include: true
+#| echo: false
+
+ggplot() +
+  stat_function(
+    geom = "area",
+    fun = ~extraDistr::dlst(., df = 1, mu = 0, sigma = 3),
+    fill = clrs[2]
+  ) +
+  xlim(c(-20, 20)) +
+  labs(x = "βs") +
+  facet_wrap(vars("β: Student t(ν = 1, µ = 0, σ = 3)")) +
+  theme_pandem(prior = TRUE)
+```
+
+\newpage
+
+# Complete model results
+
+The actual R code for these models is included in the replication code at <https://doi.org/10.17605/OSF.IO/ANONYMIZED-FOR-NOW>. We include a simplified representation of the {brms} [@Burkner:2017] model code in each section below.
+
+## Explaining COVID-19 derogations
+
+### Formal model specification
+
+$$
+\begin{aligned}
+&\ \mathrlap{\textbf{Binary outcome $i$ across week $t$}} \\
+\text{Treaty action}_{it_j} \sim&\ \operatorname{Bernoulli}(\pi_{it_j}) \\[0.75em]
+&\ \textbf{Distribution parameters} \\
+\pi_{it} =&\ \beta_0 + \beta_1\ \text{PanBack}_{it} + \\
+&\ \beta_2\ \text{New cases}_{it}\ + \beta_3\ \text{Cumulative cases}_{it}\ + \\
+&\ \beta_4\ \text{New deaths}_{it}\ + \beta_5\ \text{Cumulative deaths}_{it}\ + \\
+&\ \beta_6\ \text{Rule of law index}_{it}\ + \beta_7\ \text{Week number}_{it} \\[0.75em]
+&\ \textbf{Priors} \\
+\beta_{0 \dots 7} \sim&\ \operatorname{Student\ t}(\nu = 1, \mu = 0, \sigma = 3)
+\end{aligned}
+$$
+
+### Simplified R code
+
+```r
+brm(
+  bf(outcome ~ panback +
+      new_cases_z + cumulative_cases_z +
+      new_deaths_z + cumulative_deaths_z +
+      v2x_rule + year_week_num),
+  family = bernoulli(),
+  prior = c(
+    prior(student_t(1, 0, 3), class = Intercept),
+    prior(student_t(1, 0, 3), class = b)),
+  ...
+)
+```
+
+### Complete results
+
+```{r}
+#| label: tbl-results-full-derogations
+#| tbl-cap: "Complete results from models showing predictors of derogations (H~1~)"
+#| include: true
+
+notes <- paste(
+  "Note: Estimates are median posterior log odds from logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+if (fmt_out == "latex") {
+  notes <- str_replace_all(notes, "%", r"(\\%)")
+}
+
+inner <- "
+row{even[4-18]}={abovesep=0pt, belowsep=6pt},
+row{odd[3-16]}={rowsep=0pt},
+cells={font=\\footnotesize}, row{1}={valign=b}
+"
+
+m_tbl_derogations |>
+  set_names("Derogation filed", "Other action") |>
+  modelsummary(
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = c(notes),
+    width = c(0.4, rep(0.3, 2))
+  ) |>
+  group_tt(j = list("ICCPR action" = 2:3)) |>
+  style_tt(j = 2:3, align = "c") |>
+  style_tt(i = seq(1, 15, 2), j = 1, rowspan = 2, alignv = "t") |>
+  style_tt(
+    bootstrap_class = "table table-sm",
+    tabularray_inner = inner
+  )
+```
+
+\clearpage
+
+Model 2 in @tbl-results-full-derogations presents the results of modeling the determinants of non-derogation treaty actions. This outcome is coded as 0 each country-week if a state did not issue one of these actions that week, and 1 that week if the state did. It is coded dichotomously rather than as a count because only three country-weeks non-derogation counts greater than 1 (these were country-weeks wherein Oman issued two, the UK two, and the UK three). The dichotomous coding also mirrors how we measured ICCPR derogation data in earlier models.
+
+
+\clearpage
+
+## Explaining COVID-19 restrictions
+
+### Formal model specification
+
+$$
+\begin{aligned}
+&\ \mathrlap{\textbf{Model of outcome level $i$ across week $t$}} \\
+\text{Outcome}_{it_j} \sim&\ \operatorname{Ordered\ logit}(\phi_{it_j}, \alpha_k) \\[0.75em]
+&\ \textbf{Distribution parameters} \\
+\phi_{it} =&\ \beta_0 + \beta_1\ \text{PanBack (binary)}_{it} + \beta_2\ \text{Derogation in effect}_{it} + \\
+&\ \beta_3\ [\text{PanBack (binary)}_{it} \times \text{Derogation in effect}_{it}] + \\
+&\ \beta_4\ \text{New cases}_{it}\ + \beta_5\ \text{Cumulative cases}_{it}\ + \\
+&\ \beta_6\ \text{New deaths}_{it}\ + \beta_7\ \text{Cumulative deaths}_{it}\ + \\
+&\ \beta_8\ \text{Rule of law index}_{it}\ + \beta_9\ \text{Week number}_{it} \\[0.75em]
+&\ \textbf{Priors} \\
+\beta_{0 \dots 9} \sim&\ \operatorname{Student\ t}(\nu = 1, \mu = 0, \sigma = 3) \\
+\alpha_k \sim&\ \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+### Simplified R code
+
+```r
+brm(
+  bf(outcome ~ derogation_ineffect*panbackdichot +
+      new_cases_z + cumulative_cases_z +
+      new_deaths_z + cumulative_deaths_z +
+      v2x_rule + year_week_num),
+  family = cumulative(),
+  prior = c(
+    prior(student_t(1, 0, 3), class = Intercept),
+    prior(student_t(1, 0, 3), class = b)),
+  ...
+)
+```
+
+### Complete results
+
+```{r}
+#| label: tbl-results-full-restrictions
+#| tbl-cap: "Complete results from models showing relationship between derogations and COVID-19 restrictions"
+#| include: true
+
+notes <- paste(
+  "Note: Estimates are median posterior log odds from ordered logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+if (fmt_out == "latex") {
+  notes <- str_replace_all(notes, "%", r"(\\%)")
+}
+
+inner <- "
+row{odd[2-25]}={abovesep=0pt, belowsep=6pt},
+row{even[4-24]}={rowsep=0pt},
+cells={font=\\footnotesize}, row{1}={valign=b}
+"
+
+m_tbl_restrictions |>
+  set_names(c("Restricted movement", "Close public transit", "Stay at home")) |>
+  modelsummary(
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.3, rep(0.23, 3))
+  ) |>
+  style_tt(i = seq(1, 23, 2), j = 1, rowspan = 2, alignv = "t") |>
+  style_tt(
+    bootstrap_class = "table table-sm",
+    tabularray_inner = inner
+  )
+```
+
+
+\clearpage
+
+
+## Explaining COVID-19 human rights violations
+
+### Formal model specification
+
+$$
+\begin{aligned}
+&\ \mathrlap{\textbf{Model of outcome level $i$ across week $t$}} \\
+\text{Outcome}_{it_j} \sim&\ \operatorname{Ordered\ logit}(\phi_{it_j}, \alpha_k) \\[0.75em]
+&\ \textbf{Distribution parameters} \\
+\phi_{it} =&\ \beta_0 + \beta_1\ \text{PanBack (binary)}_{it} + \beta_2\ \text{Derogation in effect}_{it} + \\
+&\ \beta_3\ [\text{PanBack (binary)}_{it} \times \text{Derogation in effect}_{it}] + \\
+&\ \beta_4\ \text{New cases}_{it}\ + \beta_5\ \text{Cumulative cases}_{it}\ + \\
+&\ \beta_6\ \text{New deaths}_{it}\ + \beta_7\ \text{Cumulative deaths}_{it}\ + \\
+&\ \beta_8\ \text{Rule of law index}_{it}\ + \beta_9\ \text{Week number}_{it} \\[0.75em]
+&\ \textbf{Priors} \\
+\beta_{0 \dots 9} \sim&\ \operatorname{Student\ t}(\nu = 1, \mu = 0, \sigma = 3) \\
+\alpha_k \sim&\ \mathcal{N}(0, 1)
+\end{aligned}
+$$
+
+
+### Simplified R code
+
+```r
+brm(
+  bf(outcome ~ derogation_ineffect*panbackdichot +
+      new_cases_z + cumulative_cases_z +
+      new_deaths_z + cumulative_deaths_z +
+      v2x_rule + year_week_num),
+  family = cumulative(),
+  prior = c(
+    prior(student_t(1, 0, 3), class = Intercept),
+    prior(student_t(1, 0, 3), class = b)),
+  ...
+)
+```
+
+### Complete results
+
+```{r}
+#| label: tbl-results-full-hr
+#| tbl-cap: "Complete results from models showing relationship between derogations and human rights violations (H~2~ and H~3~)"
+#| include: true
+
+notes <- paste(
+  "Note: Estimates are median posterior log odds from logistic and ordered logistic regression models;",
+  "95% credible intervals (highest density posterior interval, or HDPI) in brackets."
+)
+
+if (fmt_out == "latex") {
+  notes <- str_replace_all(notes, "%", r"(\\%)")
+}
+
+inner <- "
+row{odd[2-27]}={abovesep=0pt, belowsep=6pt},
+row{even[4-26]}={rowsep=0pt},
+cells={font=\\footnotesize}, row{1}={valign=b}
+"
+
+
+m_tbl_hr |>
+  set_names(
+    c("Discriminatory policy", "Non-derogable rights",
+      "Abusive enforcement", "No time limits", "Media restrictions")) |>
+  modelsummary(
+    estimate = "{estimate}",
+    statistic = "[{conf.low}, {conf.high}]",
+    coef_map = coef_map,
+    gof_map = gof_map,
+    output = "tinytable",
+    fmt = fmt_significant(2),
+    notes = notes,
+    width = c(0.2, rep(0.16, 5))
+  ) |>
+  style_tt(i = seq(1, 27, 2), j = 1, rowspan = 2, alignv = "t") |>
+  style_tt(
+    bootstrap_class = "table table-sm",
+    tabularray_inner = inner
+  )
+```
+
+
+\clearpage
+
+# Comparing COVID-19 derogations with other treaty actions
+
+@fig-treaty-action-state-type (also Figure 4 in the text of the paper) plots treaty actions by state and compares counts of derogations against other types of treaty actions. There were 42 states that issued any kind of human rights treaty action during this period. Twenty-one issued only derogations. The "super derogating states" that issued multiple derogations during this period also did not issue other types of treaty actions. For example, Peru issued 18 derogations and Guatemala 13, but neither of these states issued any other type of human rights treaty action during this period. Similarly, there were states that never issued derogations during this period but issued other types of human rights treaty actions. For example, the United Kingdom issued six, Oman issued three, and the Netherlands issued two other treaty actions.
+
+```{r}
+#| label: fig-treaty-action-state-type
+#| fig-cap: "Counts of human rights treaty actions from March 2020–June 2021"
+#| fig-width: 6.5
+#| fig-height: 4
+#| include: true
+
+plot_action_state_type <- action_state_type |>
+  select(State, Total = `Treaty Action Count`, Derogation, Other) |>
+  pivot_longer(cols = -State, names_to = "type", values_to = "count") |>
+  arrange(desc(type), desc(count)) |>
+  mutate(State = fct_inorder(State))
+
+panels <- plot_action_state_type |>
+  filter(type == "Total") |>
+  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |>
+  select(State, panel)
+
+plot_action_state_type |>
+  filter(type != "Total") |>
+  left_join(panels, by = join_by(State)) |>
+  ggplot(
+    aes(x = count, y = fct_rev(State), fill = fct_rev(type))
+  ) +
+  geom_col() +
+  scale_fill_manual(values = clrs[c(3, 6)], guide = guide_legend(reverse = TRUE)) +
+  labs(x = "Total treaty actions between March 2020–June 2021", y = NULL, fill = NULL) +
+  facet_wrap(vars(panel), scales = "free_y") +
+  theme_pandem() +
+  theme(strip.text = element_blank())
+```
+
+During this time, states issued treaty actions towards eight treaties and seven Optional Protocols, as shown in @tbl-treaty-action-treaty. Derogations to the ICCPR constituted the clear majority of United Nations human rights treaty engagement, comprising 111 of the 150 treaty actions. The remaining actions are depicted in @fig-treaty-non-derog. The other actions were commitment actions (11 Ratifications; 7 Accessions; and 3 Signatures) and post-commitment actions (11 Objections; 4 Territorial Applications; and 2 Declarations). Of these actions, the Territorial Applications were similar to derogations in that they remove obligations from states to comply with elements of human rights treaties. Rather than highlighting specific articles and time dimensions of limited obligation like in derogations, territorial applications are geographic-based considerations of state obligation [@Comstock:2019]. Territorial applications can remove or extend state obligations. The four territorial applications under consideration here were all issued by the United Kingdom and all extended state obligations of treaty ratification obligation to Bailiwick of Jersey, Guernsey, and Alderney, all island dependencies of the British Crown.
+
+```{r}
+#| label: tbl-treaty-action-treaty
+#| tbl-cap: "Treaty actions issued from March 2020–June 2021, by treaty"
+#| include: true
+
+action_treaty |>
+  mutate(Treaty = fct_reorder(Treaty, `Number of Actions`)) |>
+  group_by(`Number of Actions`) |>
+  summarize(Treaties = str_flatten(Treaty, collapse = "; ")) |>
+  ungroup() |>
+  arrange(desc(`Number of Actions`)) |>
+  tt(width = c(0.2, 0.8)) |>
+  style_tt(j = 1:2, align = "l") |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+
+```{r}
+#| label: fig-treaty-non-derog
+#| fig-cap: "Non-derogation actions filed from March 2020–June 2021"
+#| fig-width: 6.5
+#| fig-height: 2.25
+#| include: true
+
+action_non_derog |>
+  mutate(Action = fct_reorder(`Treaty Action`, Count)) |>
+  ggplot(aes(x = Count, y = Action)) +
+  geom_col(fill = clrs[3]) +
+  labs(x = "Number of non-derogation actions", y = NULL) +
+  theme_pandem()
+```
+
+\clearpage

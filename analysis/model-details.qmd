@@ -1,0 +1,104 @@
+---
+title: "Model details"
+format:
+  html:
+    code-fold: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%",
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(targets)
+library(brms)
+library(glue)
+library(tinytable)
+library(lubridate)
+library(here)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+# Models
+tar_load(c(m_derogations, m_restrictions, m_hr))
+```
+
+```{r calculate-model-times}
+model_times <- tribble(
+  ~question, ~outcome, ~family, ~model,
+  "Explaining derogations", "Derogation filed", "Logistic", m_derogations$m_derogations_panback,
+  "Explaining derogations", "Other treaty action", "Logistic", m_derogations$m_other_panback,
+  "Explaining restrictions", "Restricted movement", "Ordered logistic", m_restrictions$m_restrict_movement,
+  "Explaining restrictions", "Close public transportation", "Ordered logistic", m_restrictions$m_restrict_pubtrans,
+  "Explaining restrictions", "Stay at home", "Ordered logistic", m_restrictions$m_restrict_stayhome,
+  "Explaining human rights violations", "Discriminatory policy", "Ordered logistic", m_hr$m_hr_discrim,
+  "Explaining human rights violations", "Non-derogable rights", "Logistic", m_hr$m_hr_ndrights,
+  "Explaining human rights violations", "Abusive enforcement", "Ordered logistic", m_hr$m_hr_abusive,
+  "Explaining human rights violations", "No time limits", "Logistic", m_hr$m_hr_nolimit,
+  "Explaining human rights violations", "Media restrictions", "Ordered logistic", m_hr$m_hr_media
+) |>
+  mutate(duration = map(model, ~{
+    .$fit |>
+      rstan::get_elapsed_time() |>
+      as_tibble() |>
+      summarize(total = as.duration(max(warmup + sample)))
+  })) |>
+  select(-model) |>
+  unnest(duration)
+
+dur <- as.period(as.duration(sum(model_times$total)))
+
+total_run_time <- glue(
+  "{hours} hours, {minutes} minutes, and {seconds} seconds",
+  hours = hour(dur), minutes = minute(dur), seconds = round(second(dur), 0)
+)
+```
+
+We ran these models on a 2021 M1 MacBook Pro with 32 GB of RAM, with 4 MCMC chains spread across 8 cores, with two CPU threads per chain, using Stan through {brms} through {cmdstanr}.
+
+In total, it took `r total_run_time` to run everything.
+
+```{r}
+total_time <- tibble(
+  question = "Total", family = "—", outcome = "Total",
+  total = as.duration(sum(model_times$total))
+)
+
+model_times_full <- model_times |>
+  bind_rows(total_time)
+
+group_labels_rle <- rle(model_times_full$question)
+group_labels <- set_names(
+  cumsum(group_labels_rle$lengths) - group_labels_rle$lengths + 1,
+  group_labels_rle$values
+) |> as.list()
+
+model_times_full |>
+  select(Outcome = outcome, Family = family, `Total time` = total) |>
+  tt(width = c(0.4, 0.3, 0.3)) |>
+  group_tt(i = group_labels) |>
+  style_tt(
+    i = as.numeric(group_labels) + 0:(length(group_labels) - 1),
+    j = 1, bold = TRUE, background = "#e6e6e6", align = "l"
+  ) |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```

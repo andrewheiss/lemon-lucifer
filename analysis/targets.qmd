@@ -1,8 +1,35 @@
 ---
-title: "Targets pipeline"
+title: "{targets} pipeline"
+freeze: false
 format:
   html:
     code-fold: true
 ---
 
-TODO
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  # echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "80%",
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+We use [the magical {targets} package](https://docs.ropensci.org/targets/) to run our analysis and keep track of all dependencies automatically.
+
+To build the entire project, run `targets::tar_make()` at the R console.
+
+Here's our complete pipeline:
+
+```{r}
+#| label: show-targets-pipeline
+#| echo: false
+
+withr::with_dir(here::here(), {
+  targets::tar_glimpse()
+})
+```

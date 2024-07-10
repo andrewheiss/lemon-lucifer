@@ -61,8 +61,12 @@ clean_derog <- function(data_raw) {
       )
     ) |>
     mutate(
-      panbackdichot = panbackdichot - 1,
-      panbackdichot_bin = as.logical(panbackdichot)
+      panbackdichot_half = panbackdichot - 1,
+      panbackdichot_half_bin = as.logical(panbackdichot)
+    ) |> 
+    mutate(
+      panbackdichot_bin = panback >= 0.3,
+      panbackdichot = as.numeric(panbackdichot_bin)
     ) |> 
     mutate(
       across(

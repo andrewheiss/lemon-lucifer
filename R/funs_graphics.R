@@ -3,6 +3,7 @@ clrs <- MetBrewer::met.brewer("Tiepolo")
 set_annotation_fonts <- function() {
   ggplot2::update_geom_defaults("label", list(family = "Noto Sans", face = "plain"))
   ggplot2::update_geom_defaults("text", list(family = "Noto Sans", face = "plain"))
+  ggplot2::update_geom_defaults("richtext", list(family = "Noto Sans", face = "plain"))
 }
 
 theme_pandem <- function(base_size = 11, base_family = "Noto Sans", prior = FALSE) {
@@ -34,7 +35,7 @@ theme_pandem <- function(base_size = 11, base_family = "Noto Sans", prior = FALS
       strip.text = element_text(size = rel(0.9), hjust = 0,
         family = "Noto Sans", face = "bold"),
       strip.background = element_rect(fill = "white", colour = NA))
-  
+
   if (prior) {
     ret <- ret +
       theme(panel.grid.major = element_blank(),
@@ -44,4 +45,10 @@ theme_pandem <- function(base_size = 11, base_family = "Noto Sans", prior = FALS
   } else {
     ret
   }
+}
+
+label_pp <- function(x) {
+  scales::label_number(
+    accuracy = 1, scale = 100, suffix = " pp.", style_negative = "minus"
+  )(x)
 }

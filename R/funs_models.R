@@ -38,6 +38,7 @@ coef_map <- c(
   "b_cumulative_deaths" = "Cumulative deaths",
   "b_cumulative_deaths_z" = "Cumulative deaths (standardized)",
   "b_v2x_rule" = "Rule of law index",
+  "b_year_week_num" = "Year-week number",
   "b_Intercept" = "Intercept",
   "b_Intercept[1]" = "Cut 1",
   "b_Intercept[2]" = "Cut 2",
@@ -65,9 +66,9 @@ f_derogations <- function(df) {
     control = list(adapt_delta = 0.91),
     threads = threading(2)
   )
-
-  m_derogations_pandem <- brm(
-    bf(iccpr_derogation_filed ~ pandem + new_cases_z + new_deaths_z + 
+  
+  m_other_panback <- brm(
+    bf(noniccprtreatyactionsdichotomous ~ panback + new_cases_z + new_deaths_z + 
         cumulative_cases_z + cumulative_deaths_z + v2x_rule + 
         year_week_num),
     data = df,
@@ -78,7 +79,7 @@ f_derogations <- function(df) {
     threads = threading(2)
   )
   
-  return(lst(m_derogations_panback, m_derogations_pandem))
+  return(lst(m_derogations_panback, m_other_panback))
 }
 
 f_restrictions <- function(df) {
@@ -293,35 +294,4 @@ f_hr <- function(df) {
   )
   
   return(lst(m_hr_discrim, m_hr_ndrights, m_hr_abusive, m_hr_nolimit, m_hr_media))
-}
-
-f_treaty <- function(df) {
-  BAYES_SEED <- 233840  # From random.org
-  
-  logit_priors <- c(
-    prior(student_t(1, 0, 3), class = Intercept),
-    prior(student_t(1, 0, 3), class = b)
-  )
-  
-  m_treaty_panback <- brm(
-    bf(noniccprtreatyactionsdichotomous ~ panback + new_cases + new_deaths + 
-        cumulative_cases + cumulative_deaths + v2x_rule + year_week_num),
-    data = df,
-    family = bernoulli(),
-    prior = logit_priors,
-    chains = 4, seed = BAYES_SEED,
-    threads = threading(2)
-  )
-  
-  m_treaty_pandem <- brm(
-    bf(noniccprtreatyactionsdichotomous ~ pandem + new_cases + new_deaths + 
-        cumulative_cases + cumulative_deaths + v2x_rule + year_week_num),
-    data = df,
-    family = bernoulli(),
-    prior = logit_priors,
-    chains = 4, seed = BAYES_SEED,
-    threads = threading(2)
-  )
-  
-  return(lst(m_treaty_panback, m_treaty_pandem))
 }

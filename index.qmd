@@ -24,12 +24,9 @@ sidebar: false
 ---
 
 ```{r echo=FALSE}
-# yaml_metadata <- rmarkdown::yaml_front_matter(here::here("manuscript", "manuscript.qmd"))
-# title <- yaml_metadata$title
-# abstract <- yaml_metadata$abstract
-
-title <- "Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic"
-abstract <- "TODO"
+yaml_metadata <- rmarkdown::yaml_front_matter(here::here("manuscript", "manuscript.qmd"))
+title <- yaml_metadata$title
+abstract <- yaml_metadata$abstract
 ```
 
 ### Abstract

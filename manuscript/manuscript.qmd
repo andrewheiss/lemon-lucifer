@@ -1,0 +1,796 @@
+---
+title: "Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic"
+short-title: "Derogations and Backsliding"
+author:
+- name: Suparna Chaudhry
+  affiliation: Lewis and Clark College
+  orcid: 0000-0003-3506-7590
+  url: https://www.suparnachaudhry.com/
+  email: schaudhry@lclark.edu
+- name: Audrey L. Comstock
+  affiliation: Arizona State University
+  orcid: 0000-0003-1772-5350
+  url: https://audreylcomstock.weebly.com/
+  email: audrey.comstock@asu.edu
+- name: Andrew Heiss
+  affiliations:
+    - id: gsu
+      name: Georgia State University
+      department: Andrew Young School of Policy Studies, Department of Public Management and Policy
+      address: "55 Park Place NE, #464"
+      city: Atlanta
+      region: GA
+      country: USA
+      postal-code: 30303
+  orcid: 0000-0002-3948-3914
+  url: https://www.andrewheiss.com
+  email: aheiss@gsu.edu
+  attributes:
+    corresponding: true
+correspondence-prefix: "Correspondence concerning this article should be addressed to"
+abstract: |
+  Did states misuse international legal emergency provisions during the COVID-19 pandemic to justify human rights abuse or did they follow international human rights law? Many governments restricted citizens' freedom of movement, association, and assembly during the crisis, raising questions about states' commitments to international human rights law. Some states used derogations to communicate temporary suspension of international legal provisions in a proportional and non-discriminatory manner, while others did not. We explore the dynamics of democratic backsliding and derogation use during the pandemic. We find that backsliding states were more likely to issue human rights treaty derogations. These derogations had mitigating effects once issued. Backsliding states that issued derogations were more likely to communicate restrictions and were less likely to issue abusive and discriminatory policy during the pandemic. Derogations helped temper abuse in states not experiencing backsliding. However, derogations did not always protect against abuse and media transparency in backsliding states. These results lend support to the use of flexibility mechanisms in international law and find that most states did not use emergency derogations to heighten human rights violations. The study contributes to the understanding of how international legal measures may help mitigate elements of democratic backsliding during times of crisis.
+date: 2024-07-01
+code-repo: "Access the code, data, and analysis at <https://github.com/andrewheiss/lemon-lucifer>"
+keywords:
+  - human rights
+  - international law
+  - pandemic
+  - derogation
+  - democratic backsliding
+bibliography: references.json
+csl: csl/apa.csl
+link-citations: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+if (is.null(knitr::pandoc_to())) {
+  fmt_out <- "interactive"
+} else {
+  fmt_out <- knitr::pandoc_to()
+}
+
+knitr::opts_chunk$set(
+  echo = FALSE, include = FALSE, warning = FALSE, message = FALSE,
+  fig.width = 6, fig.height = (6 * 0.618), out.width = "100%",
+  fig.align = "center", fig.retina = 3,
+  collapse = TRUE
+)
+
+options(digits = 3, width = 120, dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+#| label: libraries-data
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(modelsummary)
+library(marginaleffects)
+library(scales)
+library(sf)
+library(tidybayes)
+library(glue)
+library(ggtext)
+library(ggh4x)
+library(patchwork)
+library(tinytable)
+library(targets)
+
+tar_config_set(
+  store = here::here("_targets"),
+  script = here::here("_targets.R")
+)
+
+tar_load(c(
+  map_with_data, action_state_type,
+  m_derogations, m_restrictions, m_hr
+))
+
+invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
+invisible(list2env(tar_read(helper_functions), .GlobalEnv))
+invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+```
+
+There is an old adage, more recently quoted by John F. Kennedy, that *crisis* is *danger* combined with *opportunity*. The COVID-19 pandemic certainly was a health crisis. According to the World Health Organization, there were over 770 million cases and 7 million deaths attributed to the virus globally [@WorldHealthOrganization:2023]. Governments around the world had the opportunity to misuse emergency provisions during the pandemic to consolidate power and repress their peoples. Some states took up this opportunity. Angola, for example, used military and police personnel to impose lockdown policies. While enforcing these policies, police killed at least seven people early in the pandemic, most of whom were children [@AlJazeera:2020]. Amnesty International condemned the killings, commenting that, "A state of emergency is no excuse for such outrageous human rights violations" [@AmnestyInternational:2020a].
+
+While research has explored democratic backsliding during the pandemic and government repression [@GrassePavlikMatfess:2021], its effect on human rights [@AdhikariKingMurdie:2024] and the behavior of backsliding states within international organizations (IOs) [@MeyerroseNooruddin:2023], we know less about how backsliding impacts engagement with international human rights treaties. This study extends research by exploring the dynamics between democratic backsliding, international legal behavior, and human rights. We ask: did backsliding states abuse states of emergency and international human rights law during the pandemic? While some scholars warned of the risk of emergency powers leading to abuse [@Scheinin:2020], we do not yet know if derogations increased the risk of human rights abuse during the pandemic.
+
+First, we descriptively explore the phenomena of pandemic-era democratic backsliding and international human rights treaty participation. Combating the pandemic required extraordinary health measures; derogations in international law authorized states to temporarily suspend their international treaty commitments to provide them with flexibility while responding to this crisis. By declaring a state of emergency and formally derogating from international human rights treaties, states could acknowledge that their pandemic measures were temporary, necessary, and proportional, with an aim to restore normalcy as soon as possible. We first ask whether experiencing pandemic democratic backsliding impacted states' use of such derogations---were states experiencing democratic backsliding still abiding by their international legal obligations? How did the presence or absence of derogations impact human rights practices in derogating states, and was this substantially different from states not experiencing democratic backsliding? Using data from the Varieties of Democracy PanDem dataset and the Oxford COVID-19 Government Response Tracker, we find that backsliding states were more likely to issue human rights treaty derogations. Our findings also suggest that the derogations had some mitigation effects once issued. Backsliding states that derogated were less likely to issue abusive and discriminatory policies. Backsliding states not following international legal procedures were more likely to utilize discriminatory measures and were likely to engage in major violations of non-derogable rights such as right to life, freedom from torture, and freedom of thought, conscience and religion. Non-backsliding states that derogated also seemed to have mitigation effects across some measures, decreasing their risk of discriminatory policies. However, derogations did not always protect against abuse and media transparency in backsliding states. Overall, while the pandemic provided reasons for concerns for deepening autocratization in many countries, our results show that even in states where such democratic backsliding was unfolding, governments were not completely dismissive of the international dimensions of democracy, human rights, and rule of law. Backsliding states issuing derogations did not, overall, use that opportunity to systematically abuse human rights.
+
+Our findings make two main contributions to the literatures on human rights, international law, and democratic backsliding. First, we find that international legal mechanisms such as derogations did provide some protection against human rights abuses during the pandemic, even in states experiencing democratic backsliding. This finding speaks to scholarship on international legal compliance [@ConradRitter:2019; @Hillebrecht:2014], showing that treaty actions that allow for temporary suspension of legal obligations do not always contribute to more violations and abuse. Second, our results show that democratic backsliding states are still interested in appearing as legitimate members of the international community, take actions to protect their reputations, and project transparency to international audiences during times of crises. These results have important implications for how the international community may be able to prevent further autocratization in backsliding states.
+
+Below, we first explore the purpose of derogations in international law and the landscape of backsliding states at the start of the pandemic. We then elaborate on our expectations regarding state transparency and the use of international mechanisms during the pandemic. After testing these expectations, we conclude with implications for the study of international law and democratic backsliding.
+
+# Pandemic-era Democratic Backsliding and Treaty Behavior
+
+Combating a deadly virus like COVID-19 required extraordinary public health measures that often conflicted with personal rights and freedoms. Globally, IOs were confronted with how to situate the crises within global governance and human rights frameworks [@Comstock:2024], as were national level governments [@ChaudhryComstockHeiss:2024]. One way that states navigated the pandemic was to enact emergency measures. Internationally, states could commit to these emergency provisions via treaty derogations. Treaty derogations, or temporary suspensions of states' international treaty commitments, are intended to allow flexibility to states while they are experiencing a crisis---which could be civil conflict, natural disaster, or a public health crisis. Derogations provide vital information to international and domestic monitoring bodies, interest groups, and advocates about which rights are suspended, for how long, and the reasoning behind these suspensions. This information allows actors---at least in principle---to challenge measures that are excessive, vague, or outlast the in- tended time frame of their implementation [@Helfer:2021]. The International Covenant on Civil and Political Rights (ICCPR) is the only treaty with universal UN membership that requires states to issue derogations when human rights are suspended during times of crises, making it the main focus of our empirical analysis. The ICCPR places clear limitations on state actions when derogating, including that they must be proportionate, non-discriminatory, and temporary. It also specifies certain rights as non-derogable and outlines a formal procedure for derogation: the emergency must be formally declared and the UN Secretary General must be notified.
+
+Extant research on derogations has examined the kinds of states that are more likely to utilize them and the conditions under which they do so [@Burchill:2005; @HBHelferFariss]. This research finds that democracies are more likely to issue derogations and other post-commitment actions related to human rights treaties [@Comstock:2019; @Simmons:2009]. Though the most frequent derogators are stable democracies and countries where domestic courts can exercise strong oversight of the executive and hold them responsible for breaches of human rights agreements, derogations---especially in the context of a long-lasting event such like a pandemic [@Helfer:2021; @Lebret:2020]---are more concerning because of the tendency of some countries to turn into "serial derogators." These countries generally derogate "without providing information about rights restrictions and in multiple consecutive years" [@HBHelferFariss, p. 675]. Other research has also found that governments frequently violate both derogable and non-derogable rights [@richardsclay2012]. This paper builds on research by examining the dynamics between democratic backsliding and state behavior as it relates to international human rights law derogations. Extending analysis to democratic backsliders allows us to understand how regimes experiencing democratic erosion or authoritarian resurgence might engage with these international legal actions.
+
+Global democratic backsliding was already in motion when the pandemic spread in March 2020 [@LuhrmannLindberg:2020; @MaerzLuhrmannHellmeier:2020]. As of 2019, the share of countries experiencing democratic erosion more than doubled in the past decade compared to the decade before [@IDEA:2019], with only 8% of the world's population living in countries becoming more democratic [@LuhrmannLindberg:2020]. Democratic backsliding is a particular subset of such erosion involving the intentional weakening of checks and balances, and the curtailment and rollbacks of civil liberties, political rights, personal freedoms, and a broad swath of human rights. @fig-panback-map demonstrates that North America and Western Europe generally had low risk of democratic backsliding during the pandemic. However, this does not indicate that there was no backsliding occurring. Researchers point to election manipulation and executive overreach in the United States as examples of democratic erosion [@Williamson:2023] and the European Union has responded via sanctions to curb democratic backsliding of member states [@BlaubergerSedelmeier:2024]. The higher risk areas included parts of South America, across Africa, India, and some parts of Eastern Europe and Southeast Asia. Overall, pandemic-era democratic backsliding was a global phenomenon. @fig-derogation-map depicts states that issued pandemic-related derogations to the ICCPR. Most states do not issue derogations even during times of emergency, so the determinants of when they are issued is important to understand. Geographically, derogations were issued across different regions including South America, Africa, Eastern Europe, and some parts of Asia. They were not generally issued across North America or Western Europe.
+
+```{r}
+#| label: fig-panback-map
+#| fig-width: 6.5
+#| fig-height: 3.5
+#| out-width: 100%
+#| fig-cap: "Average Pandemic Backsliding Index from V-Dem from March 2020–June 2021"
+#| include: true
+
+ggplot() +
+  geom_sf(
+    data = map_with_data, aes(fill = avg_panback_cut),
+    linewidth = 0.05, color = "white"
+  ) +
+  coord_sf(crs = st_crs("+proj=robin"), datum = NA) +
+  scale_fill_manual(
+    values = clrs[c(8, 7, 2, 1)],
+    na.value = "grey85",
+    breaks = levels(map_with_data$avg_panback_cut),
+    name = "Average Pandemic Backsliding Index"
+  ) +
+  theme_pandem() +
+  theme(
+    panel.border = element_blank(),
+    legend.position = "bottom",
+    legend.justification = "center"
+  )
+```
+
+```{r}
+#| label: fig-derogation-map
+#| fig-width: 6.5
+#| fig-height: 3.5
+#| out-width: 100%
+#| fig-cap: "ICCPR pandemic-related derogations"
+#| include: true
+
+ggplot() +
+  geom_sf(
+    data = map_with_data, aes(fill = derogations_1plus),
+    linewidth = 0.1, color = "white"
+  ) +
+  coord_sf(crs = st_crs("+proj=robin"), datum = NA) +
+  scale_fill_binned(low = colorspace::lighten(clrs[1], amount = 0.8),
+    high = clrs[1], na.value = "grey85",
+    breaks = c(1, 5, 10, 15, 20),
+    limits = c(1, 20),
+    name = "Derogations filed: ",
+    guide = guide_colorsteps(barwidth = 7, barheight = 0.4, title.vjust = 1)
+  ) +
+  theme_pandem() +
+  theme(
+    panel.border = element_blank(),
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = rel(0.6)),
+    legend.justification = "center"
+  )
+```
+
+
+# International Human Rights Law, Democratic Backsliding, and Transparency in Crises
+
+Legal scholar Thomas Ginsburg recently issued a call for international institutions and international human rights law to "be engaged in the promotion, support, and disciplining of democracy." He argued that even though there is no "right to democracy" in international law, these actors are the best equipped to protect it against democratic backsliding [@Ginsburg:2021, p. 136]. In a similar vein, in response to global trends of democratic backsliding, some states have called for an increase in transparency in international human rights law. The Netherlands, for example, outlined a goal of states to "acknowledge one's own shortcomings" and the "challenges that they face in the realm of human rights and treaty compliance" [@MinistryofForeignAffairs:2023, p. 13]. In this paper, we explore the relationship between international human rights law engagement and democratic backsliding. Rather than looking to what determines and potentially prevents democratic backsliding, we seek to understand whether backsliding in turn shapes how states participate within the international human rights regime, and specifically whether the decline in democracy means a heightened and opportunistic abuse of international human rights law. From the literatures on international law, reputation, and democratic erosion, we draw several expectations about these dynamics.
+
+State regime type matters when exploring human rights and human rights law commitment. Democracies are more likely to ratify key human rights treaties [@Simmons:2009] and generally intend to comply with them [@ChayesChayes:1993; @Simmons:2009]. When non-democracies ratify human rights treaties, they "seldom keep their promise" of compliance [@VonStein:2016]. Though we know that autocracies do participate in international human rights law through commitment and other legal actions following ratification [@BoyesEldredgeShannon:2024; @ComstockVilan:2024], treaty participation may be entirely strategic on the part of non-democracies. Such states may only ratify treaties to signal their resolve to domestic opposition groups [@HollyerRosendorff:2011].
+
+While there exists robust research on the relationship between regime type and international treaty ratification and compliance, we know much less about what democratic backsliding means for human rights law engagement. However, existing research on regime transitions, human rights compliance, and commitment are informative for our expectations. Regime transition matters along several important fronts. Regimes transitioning toward democracy, or democratizing, are more likely to use the international human rights regime as a means of legitimation [@Moravcsik:2000], including through treaty commitment [@Comstock:2021]. Though new democracies are more likely to commit to broad human rights conventions more quickly, they are also more hesitant to commit to human rights treaties with more demands [@DaiTokhi:2023]. Regimes transitioning away from democracy---or experiencing democratic backsliding---are found to repress human rights more. @Davenport:1999, for example, finds that the transition towards autocratization has a significant and positive impact on repressive behavior while democratization promotes more open governance. The strength of domestic democratic institutions, in particular, is important for these findings [@HillJones:2014]. @Meyerrose:2020 argues that if IOs promote some domestic institutions but not others, backsliding can occur when domestic executives are empowered above other institutions. In examining democratic backsliding and human rights more specifically, @AdhikariKingMurdie:2024 find strong statistical support that democratic backsliding harmed human rights. The authors found that the degree or intensity of backsliding along with the length of the backsliding period contributed to further chances of human rights violations. @Ginsburg:2019 suggests that international and regional courts may be a means for activists to resist the spread of national-level democratic backsliding.
+
+During times of crises, states may have different motivations about protecting their reputation and signaling transparency to both domestic and international audiences. Transparency about human rights can come in many forms, including clear websites, information about policy, and navigable institutions [@CreamerSimmons:2013]. Transparency can be a dimension of institutional design in international law [@BianchiPeters:2013] that impacts compliance with human rights law through increasing the understanding of norms and expectations [@ChayesChayes:1993], and can shape the perception of international institutions and governments during times of crises [@BruemmerTaylor:2013]. In the context of international disasters, there has been an increasing push to provide information about the disaster and government response, though transparency is often provided only when a certain threshold of severity is reached [@Riccardi:2018].
+
+Bringing these literatures together, we expect that states that issue derogations are more willing and capable of communicating to domestic and international audiences about potential and real rights restrictions during the COVID-19 pandemic. Concerns about international reputation often shape behavior and are connected to the desire to obtain certain goals---these usually include some form of aid, trade, membership and holding office in IOs, and receiving higher rankings on performance indicators [@BushZetterberg:2021; @KelleySimmons:2019; @LevitskyWay:2010]. Generally, when countries seek cooperation from the international community, they seek external legitimacy [@Kelley:2012] and will consequently abide by legal and normative commitments to uphold human rights and rule of law. Public international commitments, such as compliance with the ICCPR, can thus be an important way for states, especially those backsliding, to signal their intent to the international community, to agree to respect these rights moving forward.
+
+However, not all states are interested in protecting their international reputation. Despite the widespread acceptance of the liberal international order after the collapse of the Soviet Union, the contracting boundaries of this Western order in recent years has changed how states weigh the risks of violating liberal norms [@CooleyNexon:2020]. There has been an increase in the number of states contesting this order. Many have alternative patron states such as Russia and China, and they have little concern about protecting their reputations in front of Western states [@Benabdallah:2019; @HackeneschBader:2020]. These states may choose to avoid derogating simply for the purpose of signaling that they do not accept international human rights regimes.
+
+We posit that backsliding without derogating signals that the national government does not value its international reputation or is not institutionally capable of communicating transparently about potential and real restrictions and abuses during the pandemic. In other words, we expect that we can learn about international signaling and state behavior by examining the dynamics of how backsliding states used international law during crisis. Examining behavior during the COVID-19 pandemic will provide insights into state signaling and intentions during the crisis.
+
+```{r}
+#| label: tbl-expectations
+#| tbl-cap: "Expectations about state transparency and practices during COVID-19"
+#| include: true
+
+tbl <- tribble(
+  ~` `, ~Derogation, ~`No derogation`,
+  "Backsliding", "Transparency about restrictions and violations", "Low/no transparency about restrictions and violations",
+  "", "*Motivations*: Legitimation and reputation concerns", "*Motivations*: Leader not concerned about reputation backlash",
+  "No backsliding", "High transparency about potential restrictions and violations", "Limited/no transparency about restrictions and violations",
+  "", "*Motivations*: Strong rule of law and valuation of international regime", "*Motivations*: Limited concern about reputation backlash and limited valuation of international regime"
+)
+
+tbl |>
+  tt(width = c(1, 2, 2)) |>
+  format_tt(j = 2:3, markdown = TRUE) |>
+  style_tt(j = 1:3, align = "lll") |>
+  style_tt(i = seq(1, 5, by = 2), j = 1, bold = TRUE, rowspan = 2, alignv = "t") |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+From these literatures, we draw several hypotheses:
+
+> H~1~: States experiencing democratic backsliding will be more likely to issue derogations.
+>
+> H~2~: States experiencing democratic backsliding will be more likely to abuse human rights.
+>
+> H~3~: States experiencing democratic backsliding that also issue derogations will be less likely to abuse human rights than states that only backslide.
+
+To test these expectations, this paper conducts a series of quantitative analyses followed by a qualitative examination of illustrative cases mapping on to each quadrant of @tbl-expectations. From these series of tests, we provide a deeper understanding of motivations and behavior of states during times of a health crisis and global threats to democracy.
+
+# Methods and Data
+
+We first quantitatively explore the dynamics between democratic backsliding, human rights treaty activity, and human rights behavior by creating a set of Bayesian regression models and generating predictions for typical or average countries, which allows us to better isolate the associations between different elements of state behavior. We include three sets of models that examine (1) the probability of treaty derogation during COVID-19, (2) the probabilities of different types of COVID-19 policy responses, and (3) the probabilities of different types of pandemic-era human rights responses. We look at the results of all three sets of models across four key conditions: states that did and did not face the risk of democratic backsliding and states that did and did not derogate from treaty obligations.
+
+## Variables included in models
+
+We use weekly data from March 11, 2020 to June 30, 2021 for 139 countries during the first 69 weeks of the pandemic. @tbl-data-sources lists the main variables we used across our models. To measure democratic backsliding, we use the Pandemic Backsliding Index (PanBack) from the Varieties of Democracy (V-Dem) project [@vdem-v12; @vdem-pandem]. PanBack measures the risk of democratic backsliding specifically during the pandemic, assessing how state responses to the pandemic violated democratic standards, based on the severity of different kinds of human rights violations. PanBack ranges from 0 to 1, with high values representing greater risk of backsliding. Following V-Dem, we dichotomize values and consider PanBack scores above 0.3 as high risk.
+
+We measure treaty activity with a binary indicator of whether a state had formally suspended its ICCPR treaty obligations through derogation during a given week. We collected and coded this data from the United Nations Treaty Collection [@UnitedNations:2023]. Finally, we include several other variables associated with both pandemic-era backsliding and derogations. We use four measures of pandemic severity each week: new cases, cumulative cases, new deaths, and cumulative deaths [@WorldHealthOrganization:2023]. We also include weekly measures of specific government public health policies [@HaleAngristGoldszmidt:2021] and quarterly measures of the severity of human rights and policy outcomes [@vdem-pandem]. We capture a state's general respect for the rule of law and transparency in enforcement with V-Dem's Rule of Law Index. Because this value is only reported annually, it acts like a country-level fixed effect in our models, representing the overall level of respect for the rule of law in a state over time. To account for differences in pandemic responses over time, we also include a weekly time trend.
+
+```{r tbl-data-sources}
+#| tbl-cap: Sources for outcomes and explanatory variables
+#| include: true
+
+tribble(
+  ~Variable,                                                    ~Description,                                                   ~Source,
+  "Pandemic Backsliding Index (PanBack)",                       "0–1; higher values represent greater risk of backsliding; ≥ 0.3 considered high risk",     "Varieties of Democracy PanDem",
+  "ICCPR derogation",                                           "Binary indicator",                                             "UN Treaty Collection",
+  "New and cumulative COVID deaths and cases",                  "Counts",                                                       "World Health Organization",
+  "Rule of law index",                                          "0–1; higher values represent greater respect for rule of law", "Varieties of Democracy",
+  "Emergency public health measures",                           "Binary indicator",                                             "Oxford COVID-19 Government Response Tracker",
+  "Human rights and policy outcomes",                           "Ordered categories for the severity of abuses",                "Varieties of Democracy PanDem"
+) |>
+  tt(width = c(35, 45, 20)) |>
+  group_tt(i = list(
+    "Democratic backsliding" = 1,
+    "Treaty activity" = 2,
+    "Other variables" = 3
+  ), indent = 0) |>
+  style_tt(i = c(1, 3, 5), j = 1, bold = TRUE, background = "#e6e6e6", align = "l") |>
+  style_tt(j = 1:3, align = "l") |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+## Modeling strategy
+
+We use a Bayesian approach to explore the uncertainty associated with state behavior during the pandemic---we include detailed specifications of our models, priors, and sampling strategy in the appendix. For binary outcomes, we use logistic regression; for categorical outcomes, we use ordered logistic regression. Both of these families of models provide coefficients on a logged odds scale, which can make interpretation difficult. To aid in the interpretation of results, we calculate conditional predicted probabilities by holding all explanatory variables constant (representing a typical country/week) and varying only derogation status and backsliding risk. We then calculate the contrasts between these predicted probabilities to determine the average differences associated with derogations and backsliding. We present these predicted probabilities graphically where possible, and we include the complete log-odds-scale results in Tables A1--A3 in the appendix. Rather than reporting individual point estimates, we report 95% credible intervals. We also report the posterior probability that the predicted contrasts between derogation status and/or backsliding risk are above or below zero.
+
+# Analysis
+
+## Explaining COVID-19 derogations
+
+```{r}
+#| label: calc-derog-coefs
+
+coef_lookup <- tribble(
+  ~coef, ~coef_nice,
+  "b_panback", "Pandemic backsliding index (PanBack)",
+  "b_v2x_rule", "Rule of law index",
+  "b_new_cases_z", "New cases (standardized)",
+  "b_cumulative_cases_z", "Cumulative cases (standardized)",
+  "b_new_deaths_z", "New deaths (standardized)",
+  "b_cumulative_deaths_z", "Cumulative deaths (standardized)"
+) |>
+  mutate(coef_nice = fct_inorder(coef_nice))
+
+m_derog_draws <- m_derogations$m_derogations_panback |>
+  gather_draws(`^b_.*`, regex = TRUE) |>
+  filter(.variable %in% coef_lookup$coef) |>
+  left_join(coef_lookup, by = join_by(.variable == coef))
+
+derog_coefs <- m_derog_draws |>
+  mutate(.value_exp = exp(.value)) |>
+  group_by(.variable, coef_nice) |>
+  reframe(
+    post_medians = median_hdci(.value_exp, .width = 0.95),
+    p_gt_0 = sum(.value_exp > 1) / n()
+  ) |>
+  unnest(post_medians) |>
+  mutate(
+    y_nice = fmt_coef(y),
+    y_nice_html = fmt_coef(y, html = TRUE)
+  ) |>
+  mutate(
+    p_lt_0 = 1 - p_gt_0,
+    p_gt = fmt_p_inline(p_gt_0, "gt"),
+    p_lt = fmt_p_inline(p_lt_0, "lt"),
+    p_gt_html = fmt_p_inline(p_gt_0, "gt", html = TRUE),
+    p_lt_html = fmt_p_inline(p_lt_0, "lt", html = TRUE)
+  ) |>
+  mutate(
+    p_d = if_else(y > 1, p_gt, p_lt),
+    p_d_html = if_else(y > 1, p_gt_html, p_lt_html),
+    plot_label = glue("{y_nice_html}; {p_d_html}")
+  ) |>
+  mutate(or_pct = label_percent(accuracy = 1)(abs(1 - y)))
+
+derog_coefs_l <- derog_coefs |> split(~.variable)
+```
+
+We first explore whether backsliding states are more likely to issue derogations from international human rights treaties. @fig-derog-coefs presents the odds ratios from a model predicting ICCPR derogations (complete results are in Appendix Table 1). States that experienced pandemic backsliding were nearly four times more likely to file derogations (`r derog_coefs_l$b_panback$y_nice`; `r derog_coefs_l$b_panback$p_d`). This is distinct from states with strong domestic institutions as measured by the rule of law index, which was positively associated with the probability of derogation, but not statistically significant (`r derog_coefs_l$b_v2x_rule$y_nice`; `r derog_coefs_l$b_v2x_rule$p_d`). Looking at the measures of health crisis, a one standard deviation increase in new and cumulative COVID cases is associated with a `r derog_coefs_l$b_new_cases_z$or_pct` and `r derog_coefs_l$b_cumulative_cases_z$or_pct` decrease in the likelihood of derogation, respectively. In contrast, an increase in new and cumulative COVID deaths is associated with a ≈50% higher and a nearly three times greater likelihood of derogation, respectively. Taken together, we see that more severe measures which captured increased intensity of both (1) democratic violations contributing to backsliding and (2) COVID deaths were the indicators that prompted states to issue pandemic-related derogations. Backsliding states were more likely to issue derogations to the ICCPR, limiting legal obligations to international human rights law during the pandemic.
+
+```{r}
+#| label: fig-derog-coefs
+#| fig-width: 6
+#| fig-height: 4.5
+#| fig-cap: "Odds ratios for coefficients from logistic regression model predicting the probability of derogation from the ICCPR"
+#| out-width: 100%
+#| include: true
+m_derog_draws |>
+  mutate(.value = exp(.value)) |>
+  ggplot(aes(x = .value, y = fct_rev(coef_nice))) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linewidth = 0.25, linetype = "21") +
+  geom_richtext(
+    data = derog_coefs, aes(x = y, label = plot_label),
+    size = 2.7, nudge_y = 0.35, label.size = 0.1, label.colour = "grey50"
+  ) +
+  scale_x_log10() +
+  labs(
+    x = "Odds ratio", y = NULL,
+    caption = str_wrap(
+      glue(
+        "Point shows posterior median;", "
+        thick lines show 80% credible interval;",
+        "thin black lines show 95% credible interval",
+        .sep = " "
+      ),
+      width = 60
+    )
+  ) +
+  theme_pandem() +
+  theme(panel.grid.major.y = element_blank())
+```
+
+To explore whether democratic backsliding had an overall impact on legal behavior toward international human rights treaties, @fig-treaty-action-state-type descriptively shows the count of all human rights treaty actions by states, divided by type of filing. Derogations are overwhelming the most common type of international treaty action issued during the pandemic. In the appendix, we run a model that predicts non-derogation actions (such ratifications, reservations, and declarations) using the same covariates used to predict ICCPR derogations, and find that the rule of law index is the only factor that significantly predicts non-derogation human rights treaty actions---backsliding is not substantially associated with other kinds of treaty actions. Examining these treaty actions as a dependent variable allows us to test whether democratic backsliding states participated with international law, broadly, in different ways from their counterparts and/or had a unique set of behaviors with more critical legal actions such as derogations.These findings together may indicate that for general, non-emergency legal actions, strong domestic rule of law and institutions generally matter for international legal behavior, but during times of crisis, other factors are at play. Backsliding behavior did not shape states' legal engagement with all human rights treaties---rather, states specifically and uniquely responded to the pandemic with targeted derogations.
+
+```{r}
+#| label: fig-treaty-action-state-type
+#| fig-cap: Counts of human rights treaty actions from March 2020–June 2021
+#| fig-width: 6.5
+#| fig-height: 4
+#| out-width: 100%
+#| include: true
+
+plot_action_state_type <- action_state_type |>
+  select(State, Total = `Treaty Action Count`, Derogation, Other) |>
+  pivot_longer(cols = -State, names_to = "type", values_to = "count") |>
+  arrange(desc(type), desc(count)) |>
+  mutate(State = fct_inorder(State))
+
+panels <- plot_action_state_type |>
+  filter(type == "Total") |>
+  mutate(panel = ifelse(row_number() <= 21, 1, 2)) |>
+  select(State, panel)
+
+plot_action_state_type |>
+  filter(type != "Total") |>
+  left_join(panels, by = join_by(State)) |>
+  ggplot(
+    aes(x = count, y = fct_rev(State), fill = fct_rev(type))
+  ) +
+  geom_col() +
+  scale_fill_manual(values = clrs[c(3, 6)], guide = guide_legend(reverse = TRUE)) +
+  labs(x = "Total treaty actions between March 2020–June 2021", y = NULL, fill = NULL) +
+  facet_wrap(vars(panel), scales = "free_y") +
+  theme_pandem() +
+  theme(strip.text = element_blank())
+```
+
+## Explaining COVID-19 restrictions
+
+```{r}
+#| label: calc-preds-restrictions
+
+preds_movement <- calc_preds(m_restrictions$m_restrict_movement)
+preds_movement_details <- calc_preds_details(preds_movement)
+preds_movement_l <- make_preds_inline(preds_movement_details)
+
+preds_pubtrans <- calc_preds(m_restrictions$m_restrict_pubtrans)
+preds_pubtrans_details <- calc_preds_details(preds_pubtrans)
+preds_pubtrans_l <- make_preds_inline(preds_pubtrans_details)
+
+preds_stayhome <- calc_preds(m_restrictions$m_restrict_stayhome)
+preds_stayhome_details <- calc_preds_details(preds_stayhome)
+preds_stayhome_l <- make_preds_inline(preds_stayhome_details)
+```
+
+Next, we examine how backsliding risk and derogation behavior are associated with different types of emergency policies. @fig-restrictions-preds presents the conditional predicted probabilities of different levels of enforcement of internal movement, public transportation, and stay-at-home emergency measures in a typical country-week. A consistent pattern of government responses emerges across all three types of emergency measures. For internal movement (@fig-restrictions-preds, panel A), states with a low risk of backsliding that did not derogate had the highest probability (`r preds_movement_l$low_backsliding_risk.no_derogation.no_measures$prob_ci_nice`) of not imposing any travel restrictions and the lowest probability (`r preds_movement_l$low_backsliding_risk.no_derogation.restrictions_in_place$prob_ci_nice`) of having strict restrictions in place. Low-backsliding-risk states that derogated, in contrast, were substantially more likely to have restrictions in place and far less likely to have no or minimal restrictions. Among states with a high risk of backsliding, the pattern of the probability of imposing internal movement restrictions for non-derogating states appears relatively similar to the pattern in low-risk, derogating states, with a `r preds_movement_l$high_backsliding_risk.no_derogation.restrictions_in_place$prob_ci_nice` chance of imposing restrictions for non-derogating states. For backsliding states that derogated, having restrictions in place is overwhelmingly the most likely outcome with a probability between `r preds_movement_l$high_backsliding_risk.derogation.restrictions_in_place$prob_ci_nice`, with both no measures and recommendations to not travel only `r preds_movement_l$high_backsliding_risk.derogation.no_measures$prob_ci_nice` likely.
+
+```{r}
+#| label: fig-restrictions-preds
+#| fig-cap: Predicted probabilities of imposing emergency policies across states with low and high risks of democratic backsliding and derogation status
+#| fig-width: 6.5
+#| fig-height: 8.5
+#| out-width: 100%
+#| include: true
+
+p1 <- ggplot(preds_movement, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_movement_details, filter_small = FALSE),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Internal movement measures", tag = "A"
+  ) +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p2 <- ggplot(preds_pubtrans, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_pubtrans_details, filter_small = FALSE),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Public transportation measures", tag = "B"
+  ) +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p3 <- ggplot(preds_stayhome, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_stayhome_details, filter_small = TRUE),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)], guide = guide_legend(nrow = 2)) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Stay at home measures", tag = "C"
+  ) +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+(p1 / line_divider / p2 / line_divider / p3) +
+  plot_layout(heights = c(0.31, 0.035, 0.31, 0.035, 0.31)) +
+  plot_annotation(
+    caption = str_wrap(
+      glue(
+        "The vertical slices of the bars depict 500 posterior samples;",
+        "the fuzziness represents the uncertainty in category boundaries.",
+        "95% credible intervals are shown as ranges in each category",
+        .sep = " "
+      ),
+      width = 100
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        margin = margin(t = 10), size = rel(0.7),
+        family = "Noto Sans", face = "plain"
+      )
+    )
+  )
+```
+
+The predicted probabilities for public transportation measures and stay-at-home restrictions demonstrate similar patterns (@fig-restrictions-preds, panels B and C). Non-backsliding, non-derogating states are the most likely to have no emergency measures (`r preds_pubtrans_l$low_backsliding_risk.no_derogation.no_measures$prob_ci_nice` and `r preds_stayhome_l$low_backsliding_risk.no_derogation.no_measures$prob_ci_nice`, respectively) and least likely to impose the harshest restrictions (`r preds_pubtrans_l$low_backsliding_risk.no_derogation.require_closing$prob_ci_nice` and `r preds_stayhome_l$low_backsliding_risk.no_derogation.require_not_leaving_house_with_minimal_exceptions$prob_ci_nice` respectively). For non-backsliding states, having a derogation in place is associated with a substantially higher probability of requiring the closing of transportation systems (`r preds_pubtrans_l$low_backsliding_risk.derogation.require_closing$prob_ci_nice`; twice as likely) and requiring residents to stay home (`r preds_stayhome_l$low_backsliding_risk.derogation.require_not_leaving_house_with_minimal_exceptions$prob_ci_nice`; nearly two-thirds as likely). States with a high risk of backsliding that do not derogate appear roughly similar to non-backsliding, derogating states, while high-risk states that derogated are the most likely to require closing (`r preds_pubtrans_l$high_backsliding_risk.derogation.require_closing$prob_ci_nice`) and the least likely to have no emergency measures at all (`r preds_pubtrans_l$high_backsliding_risk.derogation.no_measures$prob_ci_nice`). Derogations appear particularly important for stay-at-home measures, which are the most individualized of the three emergency measures here (i.e. residents are constrained to their homes vs. prohibited from traveling between cities or using public transportation). More democratic, non-backsliding states appear hesitant to impose requirements to stay-at-home, and the states that did so reinforced this emergency violation with a derogation. States at greater risk of backsliding were more willing to impose these restrictions without derogations, and those that derogated had the highest probability of strict emergency measures.
+
+There is a consistent pattern across the four types of states: low-risk, non-derogating states have the lowest probability of imposing any emergency measures; high-risk, derogating states have the highest probability of imposing strict measures; low-risk, derogating states and high-risk, non-derogating states have roughly similar probabilities of the strictness of emergency measures. This could indicate that at a baseline, backsliding states were more willing to enact restrictions than their non-backsliding counterparts. It can also imply that both low-risk and high-risk states used derogations as a method to enact stronger pandemic measures, signaling that they were either taking the pandemic more seriously, or possibly using derogations as cover for using stronger restrictions [@ChaudhryComstockHeiss:2024].
+
+## Explaining COVID-19 human rights violations
+
+```{r}
+#| label: calc-preds-hr
+
+# Discriminatory policy
+preds_hr_discrim <- calc_preds(m_hr$m_hr_discrim)
+preds_hr_discrim_details <- calc_preds_details(preds_hr_discrim)
+preds_hr_discrim_l <- make_preds_inline(preds_hr_discrim_details)
+
+diffs_hr_discrim <- calc_preds_diffs(preds_hr_discrim)
+diffs_hr_discrim_details <- calc_preds_diffs_details(diffs_hr_discrim)
+diffs_hr_discrim_l <- make_preds_inline(diffs_hr_discrim_details)
+
+# Non-derogable rights
+preds_hr_ndrights <- calc_preds(m_hr$m_hr_ndrights)
+preds_hr_ndrights_plot <- bind_rows(
+  preds_hr_ndrights |> mutate(.category = "Major"),
+  preds_hr_ndrights |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |>
+  mutate(.category = factor(.category, levels = c("None", "Major"), ordered = TRUE))
+preds_hr_ndrights_details <- calc_preds_details(preds_hr_ndrights_plot)
+preds_hr_ndrights_l <- make_preds_inline(preds_hr_ndrights_details)
+
+diffs_hr_ndrights <- calc_preds_diffs(preds_hr_ndrights_plot)
+diffs_hr_ndrights_details <- calc_preds_diffs_details(diffs_hr_ndrights)
+diffs_hr_ndrights_l <- make_preds_inline(diffs_hr_ndrights_details)
+
+# Abusive enforcement
+preds_hr_abusive <- calc_preds(m_hr$m_hr_abusive)
+preds_hr_abusive_details <- calc_preds_details(preds_hr_abusive)
+preds_hr_abusive_l <- make_preds_inline(preds_hr_abusive_details)
+
+# Time limits
+preds_hr_nolimit <- calc_preds(m_hr$m_hr_nolimit)
+preds_hr_nolimit_plot <- bind_rows(
+  preds_hr_nolimit |> mutate(.category = "Moderate"),
+  preds_hr_nolimit |> mutate(.category = "None") |> mutate(.epred = 1 - .epred)
+) |>
+  mutate(.category = factor(.category, levels = c("None", "Moderate"), ordered = TRUE))
+preds_hr_nolimit_details <- calc_preds_details(preds_hr_nolimit_plot)
+preds_hr_nolimit_l <- make_preds_inline(preds_hr_nolimit_details)
+
+diffs_hr_nolimit <- calc_preds_diffs(preds_hr_nolimit_plot)
+diffs_hr_nolimit_details <- calc_preds_diffs_details(diffs_hr_nolimit)
+diffs_hr_nolimit_l <- make_preds_inline(diffs_hr_nolimit_details)
+
+# Media restrictions
+preds_hr_media <- calc_preds(m_hr$m_hr_media)
+preds_hr_media_details <- calc_preds_details(preds_hr_media)
+preds_hr_media_l <- make_preds_inline(preds_hr_media_details)
+```
+
+While there is a consistent pattern in how democratic backsliding and treaty actions are associated with pandemic-related emergency measures, there is much more variation in how democracy and derogations influence a state's respect for human rights during the pandemic. @fig-hr-preds presents the conditional predicted probabilities of different types of human rights violations in a typical country-week.
+
+```{r}
+#| label: fig-hr-preds
+#| fig-cap: Predicted probabilities of violating human rights across states with low and high risks of democratic backsliding and derogation status
+#| fig-width: 9.5
+#| fig-height: 8.75
+#| out-width: 100%
+#| include: true
+
+p1 <- ggplot(preds_hr_discrim, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_hr_discrim_details),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Discriminatory policy", tag = "A") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p2 <- ggplot(preds_hr_ndrights_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_hr_ndrights_details),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Violation of non-derogable rights", tag = "B") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p3 <- ggplot(preds_hr_abusive, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_hr_abusive_details),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Abusive enforcement", tag = "C") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p4 <- ggplot(preds_hr_nolimit_plot, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_hr_nolimit_details),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 2)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "No time limited measures", tag = "D") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+p5 <- ggplot(preds_hr_media, aes(x = .draw, y = .epred)) +
+  geom_area(aes(fill = .category), position = position_stack()) +
+  geom_label(
+    data = calc_fuzzy_labs(preds_hr_media_details),
+    aes(x = x, y = y, label = prob_ci_nice, hjust = hjust),
+    fill = scales::alpha("white", 0.4), label.size = 0,
+    fontface = "bold", size = 8, size.unit = "pt"
+  ) +
+  scale_x_continuous(breaks = NULL, expand = c(0, 0)) +
+  scale_y_continuous(labels = label_percent(), expand = c(0, 0)) +
+  scale_fill_manual(values = clrs[c(7, 4, 2, 1)]) +
+  labs(
+    x = NULL, y = "Cumulative\nprobabilities",
+    fill = "Media restrictions", tag = "E") +
+  facet_nested_wrap(
+    vars(panbackdichot, derogation_ineffect),
+    strip = nested_settings,
+    nrow = 1
+  ) +
+  theme_pandem() +
+  theme_fuzzy_bar
+
+layout <- "
+AID
+FIG
+BIE
+HI#
+CI#
+"
+
+p1 + p2 + p3 + p4 + p5 + line_divider + line_divider + line_divider + line_divider_v +
+  plot_layout(
+    design = layout,
+    heights = c(0.31, 0.035, 0.31, 0.035, 0.31),
+    widths = c(0.94, 0.02, 0.94)
+  ) +
+  plot_annotation(
+    caption = str_wrap(
+      glue(
+        "The vertical slices of the bars depict 500 posterior samples;",
+        "the fuzziness represents the uncertainty in category boundaries.",
+        "95% credible intervals are shown as ranges in each category",
+        .sep = " "
+      ),
+      width = 100
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        margin = margin(t = 10), size = rel(0.7),
+        family = "Noto Sans", face = "plain"
+      )
+    )
+  )
+```
+
+We find strong support for our hypothesis that states with a high risk of backsliding are more likely to abuse human rights. Earlier, we found that backsliding states had a higher baseline than non-backsliding states for imposing pandemic-related emergency measures. We find similar trends with human rights abuses. In all the human rights outcomes we observed, states with a high risk of backsliding have a substantially high probability of human rights abuses. For instance, states with a low risk of backsliding have more than a 90% probability of imposing discriminatory policies, while states with a high backsliding risk only have a `r preds_hr_discrim_l$high_backsliding_risk.no_derogation.none$prob_ci_nice` chance of seeing no discriminatory policies, and have high probabilities of minor, moderate, or major violations. Violations of non-derogable rights are exceptionally rare in non-backsliding states (with a 95--100% chance of no violations), while such abuses are predicted to occur a quarter to half of the time in backsliding states. States with a low risk of backsliding also see lower probabilities of abusive enforcement and media restrictions than their high-risk counterparts. Backsliding states are more likely to not specify time limits for emergency measures, though the difference is less visually striking than the other human rights outcomes in @fig-hr-preds---states at risk of backsliding are `r diffs_hr_nolimit_l$high_low_backsliding_risk.no_derogation.moderate$pp_ci_nice` percentage points (for states with no derogations) or `r diffs_hr_nolimit_l$high_low_backsliding_risk.derogation.moderate$pp_ci_nice` percentage points (for states with derogations) percentage points more likely to have no time limits than states with low risk of backsliding (`r diffs_hr_nolimit_l$high_low_backsliding_risk.derogation.moderate$p_d`). Perhaps not surprisingly, states that experienced backsliding were significantly more likely to use discriminatory policy and media restrictions during the pandemic.
+
+Derogation status interacts with backsliding risk---among states with a high risk of backsliding, derogation is associated with better outcomes for several of the human rights violations we modeled, providing partial support for our third hypothesis. Among states at risk of backsliding, those that do not derogate have a range of probable levels of implementing discriminatory policies (@fig-hr-preds, panel A) and only a `r preds_hr_discrim_l$high_backsliding_risk.no_derogation.none$prob_ci_nice` probability of no violations, while those that do derogate have a nearly 100% chance of avoiding discriminatory policies. The difference is similar for abusive enforcement (@fig-hr-preds, panel C). States at risk of backsliding are most likely to engage in minor (≈25%) or moderate (≈33%) abusive enforcement regardless of derogation status, but the distribution of possible outcomes shifts substantially at the extremes when states derogate. The risk of major abusive enforcement drops from `r preds_hr_abusive_l$high_backsliding_risk.no_derogation.major$prob_ci_nice` to `r preds_hr_abusive_l$high_backsliding_risk.nderogation.major$prob_ci_nice` and the probability of no violations jumps from `r preds_hr_abusive_l$high_backsliding_risk.no_derogation.none$prob_ci_nice` to `r preds_hr_abusive_l$high_backsliding_risk.derogation.none$prob_ci_nice` for derogating states. The difference appears similar---though not significant---for the violation of non-derogable rights. Derogating backsliding states are roughly five percentage points less likely to violate these rights, but the difference is not significant (`r diffs_hr_ndrights_l$high_backsliding_risk.derogation_no_derogation.none$p_d`).
+
+Derogation status also matters for the risk of not having time-limited emergency measures. For backsliding states, derogation is associated with a `r diffs_hr_nolimit_l$high_backsliding_risk.derogation_no_derogation.none$pp_ci_nice` percentage point higher probability of having time limited measures (`r diffs_hr_nolimit_l$high_backsliding_risk.derogation_no_derogation.none$p_d`), while in non-backsliding states there is a `r diffs_hr_nolimit_l$low_backsliding_risk.derogation_no_derogation.none$pp_ci_nice` percentage point difference, which is larger and more precise (`r diffs_hr_nolimit_l$low_backsliding_risk.derogation_no_derogation.none$p_d`). This difference can be directly attributable to derogations, since the derogation process requires that states specify time limits for their emergency measures.
+
+Some trends go against our expectations. Media restrictions are the only human rights outcome where derogations do not behave as expected for backsliding states---states that do not derogate have an `r preds_hr_media_l$high_backsliding_risk.no_derogation.major$prob_ci_nice` probability of major media restrictions and a `r preds_hr_media_l$high_backsliding_risk.derogation.major$prob_ci_nice` chance of major restrictions when derogating. We hypothesized that derogating and backsliding states would care about legitimation and reputation, but it seems that these concerns do not apply to censorship and media restrictions. Derogations are associated with better human rights outcomes in states with a low risk of backsliding for all measures except abusive enforcement, where the probabilities of minor, moderate, and major violations increase by 3--10 percentage points (@fig-hr-preds, panel C).
+
+# A Closer Look at States by Derogation and Backsliding Behavior
+
+In this section, we briefly examine four states as illustrative cases of varying derogation and democratic backsliding behavior to better unpack how democratic backsliding and derogation interaction (or lack thereof) may have influenced state behavior during the pandemic. Earlier in the paper we posited that transparency about restrictions and violation would vary across states based on derogation and backsliding behavior. @tbl-mini-cases situates the cases across backsliding and derogation status. Most states did not issue derogations and did not experience high levels of backsliding. All of the states that experienced high risk of democratic backsliding and issued derogations were from the Central American or South America regions. The states that issued derogations but did not experience a high risk of democratic backsliding were from a mix of regions including South America, Central America, Asia, Eastern Europe, and Africa. We selected cases that depict both regional variation and low/high risk of backsliding. Including extreme cases should be an "easy test" of the influence of backsliding on human rights violations and other behaviors if democratic backsliding has an impact. In addition to the ICCPR, states also derogated from regional human rights treaties---the American Convention on Human Rights (ACHR) and the European Convention on Human Rights (ECHR) [@IstrefiHumburg:2020]. Therefore, the mini-cases below examine derogations to ICCPR, as well as the ACHR and ECHR, where applicable.
+
+```{r}
+#| label: tbl-mini-cases
+#| tbl-cap: Mini-cases categorized by derogation and backsliding behavior
+#| include: true
+
+tribble(
+  ~` `, ~`Issued Derogations`, ~`No Derogations`,
+  "Experienced High Risk of Backsliding", "Guatemala", "India",
+  "Did Not Experience High Risk of Backsliding", "Armenia", "Hungary"
+) |>
+  tt(
+    width = c(1/3, 1/3, 1/3),
+    notes = list("a" = list(i = 1, j = 1, text = "PanBack > 0.3"))
+  ) |>
+  style_tt(j = 1, bold = TRUE) |>
+  style_tt(j = 2:3, align = "c") |>
+  style_tt(
+    bootstrap_class = "table table-sm"
+  )
+```
+
+## High risk of backsliding, Derogations present: Guatemala
+
+On March 9, 2020, Guatemala became the first state to formally derogate from Articles 12 and 21 of the ICCPR, both of which concern the freedoms of movement, association, assembly and demonstration [@PeacefulAssemblyWorldwide:2021]. Guatemala also sent official notification of derogation to the Organization of American States (OAS) on March 23, 2020, stating the government's intention to derogate from Articles 15 and 22 of the ACHR [@MinisteriodeRelacionesExterioresdeGuatemala:2020]. Article 15 guarantees the right of peaceful assembly, while Article 22 protects the freedom of movement and residence. Counter to trends in many countries across the globe, Guatemala notified the ICCPR before it sent notifications of derogation to the OAS, demonstrating a clear commitment to the treaties and international law. In addition, from the 10 states that derogated from the ACHR, only 4, including Guatemala filed notification of derogations from the ICCPR [@IstrefiHumburg:2020].
+
+President Alejandro Giammattei was sworn in as President of Guatemala shortly before the pandemic. Prior democratic governments failed to meet their mandate---in 2019, more than half of the population lived below the poverty line [@FreemanPerello:2023]. Corruption was another big concern---in January 2020, Transparency International ranked Guatemala as the fourth most corrupt country in the world. Holding office was often seen as lucrative not just for politicians but also for those financing these leaders [@FreemanPerello:2023]. Thus, while many domestic and international observers were concerned about backsliding during his government, the pandemic also exacerbated fears about the relationship between transparency and corruption.
+
+During the pandemic, Guatemala maintained a low rate of contagion compared with many other Latin American countries---which the government used to bolster its popularity. The OHCHR even praised the work done by the Office of Indigenous Women and the Ministry of Education for increasing support for indigenous children's participation in primary education. Between 2020--2023, there was a 7% increase in enrollment (49% of which was among girls); moreover, the dropout rates decreased by 4% counter to global trends during the pandemic [@OHCHR:2023]. In January 2021, the Guatemalan government requested derogations from two additional articles of the ACHR (Articles 13 and 16), and extensions to their previous derogations from Articles 15 and 22. Article 16 of the ACHR---like Article 21 of the ICCPR---protects the freedom of association, while Article 13 protects the freedom of thought and expression. Guatemala's derogation from articles regarding freedom of thought and expression has been seen by some as a concerning attempt to silence media criticisms of the government's handling of the pandemic [@TheGlobalStateofDemocracyInitiative:2021]. Human Rights Watch accused the administration of hindering journalists' access to public information [@Mercadal:2024]. This limited transparency also raised concerns about media freedom---though the government itself has not targeted any journalists, the media was shut out of various congressional sessions, making it unable to report accurately on the pandemic. Overall, though there were still causes for concern, Guatemala's derogations seemed to be lawful and generally proportionate, and the government engaged in fewer rights violations than expected. The Central American nation was quick to communicate its intentions to its treaty organizations, and in this case, the government's desire to communicate its intentions and maintain transparency may have provided a check on the rate of backsliding.
+
+However, corruption was considered to be the main reason undermining efforts to fight the pandemic. Scholars noted that corruption during the pandemic "contributed to a regression of democracy" [@Mercadal:2024, p. 225]. Concerns about democratic backsliding ultimately did not fully materialize---in August 2023, Bernardo Arévalo, a centrist anti-corruption reformer, won Guatemala's presidential runoff by a wide margin after an electoral process that nearly saw Arévalo's party barred from competing.
+
+## High risk of backsliding, no derogation: India
+
+To illustrate the interaction of a high risk of democratic backsliding and the lack of derogations during the pandemic, we look at the case of India. According to Article 352 of India's constitution, India is only allowed to declare a state of emergency when its territory is threatened "by war or external aggression or armed rebellion" [@const-india-352]---not in the case of public health crises. Despite having an extremely deadly Delta wave of Covid-19 cases during the pandemic and the implementation of multiple measures to protect a sixth of the world's population, India did not derogate from any treaties. Without derogations, there is an absence of sunset clauses that typically ensure that there is an end to the measures a country implements during an emergency. Thus, many measures disregarded ICCPR provisions that should have been protected even in a state of emergency.
+
+When India went into lockdown in March 2020, the government only provided a four-hour notice---this violated ICCPR Article 19, the right to seek and receive information, including early warnings of national measures like the lockdown. Further, the CESCR General Comment No. 14 says that "access to information concerning the main health problems in the community, including methods of preventing and controlling them" is also a guaranteed right [@AmnestyInternational:2020]. The lack of notice stranded a large number of migrant workers in cities, far from their homes in rural areas, with no transportation. Many of these workers died while trying to walk hundreds of miles back to their villages [@ChaudhryPrasad:2020].
+
+As the pandemic progressed, the Bharatiya Janata Party (BJP)-led government used the pandemic measures to hasten backsliding. The government paid little heed to technical and scientific advice [@Mukherji:2020]. Instead, the BJP government used its institutional power to shut down dissent, especially from media, civil society, and lawyers. For instance, many measures disproportionately impacted journalists' ability to work [@icnl-covid]. While these measures may have been intended to prevent misinformation, they were used to suppress journalists and activists. The government also used restrictions to arbitrarily arrest and detain opponents to the regime---including those protesting the government and its Hindu nationalist policies [@YasirSchultz:2020]. Subsequent to their arrest, detainees had limited access to legal counsel, which led to their continued detention. Many measures also violated the right to privacy. Concerns over enhanced surveillance techniques arose after multiple leaks of personal information of infected peoples which has led to discrimination and even assault. These measures led to cases of Muslims being assaulted, harassed, and denied medical attention or spikes in caste-based discrimination and violence during the pandemic [@Ayyub:2020]. Ultimately, many scholars and policymakers argued that these measures were used to tighten both the government's grip on media as well as provide a justification to centralize power [@Mukherji:2020].
+
+In The Global State of Democracy 2021 Report, India had the most violations among democracies experiencing backsliding. In the same year, Varieties of Democracy relegated India as an "electoral autocracy," CIVICUS coded India's civil society environment as "repressed," and Reporters Without Borders in its World Press Freedom Index ranked India 161 out of 180 countries [@Tripathi:2023]. Thus, over the course of the pandemic, India did not derogate from its treaty obligations, and its pandemic measures were further used to tighten both the government's grip on the media as a justification to centralize power. These developments occurred in the context of India continuing to maintain an independent relationship with Russia, despite pressure from the West. India repeatedly abstained from UN resolutions condemning Russia, and India's oil imports from Russia also increased after Western sanctions against the country [@Grossman:2022]. Thus, analysts have noted that while India is not abandoning the liberal international order, it has also ensured that by refusing to condemn Russia, it continues to receive tangible economic and security benefits from Russia [@Grossman:2022a].
+
+## Low risk of backsliding, issued derogations: Armenia
+
+Armenia declared a state of emergency in March 2020 and promptly derogated from both the ICCPR and ECHR. The declaration of a state of emergency in Armenia through Decree No. 298-N on March 16, 2020, resulted in the suspension of certain constitutional rights and freedoms, including freedom of movement and peaceful assembly [@icnl-covid]. The derogations were later extended in accordance with international law. Armenia also officially notified the Secretary General of the Council of Europe (COE) of possible derogations from the obligations of Armenia under the Convention [@CouncilofEurope:2020a]. On the 16th September 2020, Armenia withdrew all derogations and returned to full compliance with ICCPR [@PeacefulAssemblyWorldwide:2021].
+
+Unlike countries experiencing a high risk of backsliding, the Armenian government worked with civil society representatives and the media to formulate pandemic measures pertaining to them [@CouncilofEurope:2020]. These recommendations were subsequently incorporated into a government decree adopted on 24 March 2020, revising the restrictions, which was welcomed also by the Organisation for Security and Cooperation in Europe (OSCE) Media Freedom Representative, as well as commended by the Armenian media [@CouncilofEurope:2020; @OSCE:2020]. Furthermore, in its State Reply to the COE on April 13, 2020, the government declared that the restrictions of media activities became void. The rationale was that the Armenian government was highly confident "in the information on COVID-19 provided by official sources among population and a responsible behavior of the media during this period" [@CouncilofEurope:2020]. Thus, unlike many other countries, media restrictions were lifted shortly after the state emergency was declared.
+
+Armenia's derogations, and transparency not just with the treaty bodies, but also to the COE, as well as respect for media freedoms during this period can be explained, at least in part, by its increasing pivot to the West and desire to engage with the liberal international order. Russian-Armenian relations have been in decline, and there have been increasing discussions about Armenian desire to seek EU candidacy, breaking decades of affiliation with Russia [@Castillo:2024]. After repeated Russian passivity over Azerbaijan's offensives into Nagorno-Karabakh, Armenia froze relations with the Russian-led Collective Security Treaty Organization, organized military exercises with the US and expanded ties with democratic countries [@Kucera:2023]. In December 2023, the Armenian Foreign Minister hoped that Armenia would, "get as close to the European Union as the EU deems possible" [@Castillo:2024].
+
+## Low risk of backsliding, no derogations: Hungary
+
+Since taking office in 2010, Hungarian Prime Minister Viktor Orban implemented a number of constitutional and legal changes to consolidate his party's control over the country's institutions. In March 2020, in response to the pandemic, his government declared a national "State of Danger"---a special state of emergency [@icnl-covid]. Under this State of Danger, in addition to quarantining and social distancing regulations, and temporary closure of educational institutions, the government also increased police and military presence in the streets, border controls, and entry bans [@icnl-covid]. It also restricted data protection rights mandated by the General Data Protection Regulation (GDPR), an EU agreement that regulates information privacy. These restrictions allowed the government to use personal data of citizens without oversight [@MasseSzaboDenes:2020]. However, in implementing these measures, the government never notified the UN about its intent to derogate from the ICCPR.
+
+The enforcement of these pandemic-related measures resulted in numerous violations of ICCPR and of derogation standards of non-discriminatory and proportional measures. In addition, many measures also restricted media freedom. Under one law, journalists who published "false" information about the pandemic or distorted government narratives would be punished with five years in jail [@icnl-covid]. The government also limited access to press conferences, only responded to media inquiries from pro-government outlets, and banned local health representatives from talking to the media [@InternationalCommissionofJurists:2022]. A 2022 report by the International Commission of Jurists on Hungary noted that, "By exercising emergency powers in order to justify the adoption of these measures, the government has failed to comply with or adequately consider international law standards with which such measures clearly conflict" [@InternationalCommissionofJurists:2022]. European Union Parliament lawmakers, in turn, demanded official punishment and denunciation of Hungary over some of these laws [@Cox:2020].
+
+Hungary's brazen violation of not just the ICCPR, but also European regulations such as the GDPR can be reflective of its increasing rift from the European Union (EU) and its pivot towards Russia. Hungary buys billions of dollars in Russian oil and gas, despite many in the West ceasing to do so after Russia's invasion of Ukraine [@GavinJackGijs:2024]. Unlike other countries that voluntarily divested from Russian gas, Hungary even struck new deals with Moscow [@GavinJackGijs:2024]. Meanwhile, Orban has also criticized EU sanctions on Russia and blocked EU financial assistance for Ukraine [@Ridgwell:2024]. However, Russia is not the only alternative source of goods for Hungary---more recently, China has filled in this role. In 2023, Hungary was among the largest global recipients of Chinese Belt and Road Initiative investment to finance a high-speed railway from Budapest to Serbia [@Ridgwell:2024]. Thus, the presence of alternative patron states may have emboldened Hungary to violate not just international, but also European laws.
+
+## Discussion
+
+The four case illustrations show how derogations had a mitigating effect both in states experiencing democratic backsliding and those that did not. Derogating states in both cases had concerns about maintaining international reputation and legitimacy, and derogations helped them communicate their pandemic measures in a more or less transparent manner. However, states not as interested in protecting their international reputation, especially in the perspective of Western states, were less likely to use derogations as a means to communicate their intentions about pandemic measures. These states subsequently engaged in more abusive and discriminatory enforcement of such measures. The dynamics illustrated in these cases overall support the purpose of derogations in international law. However, state motivations for declaring derogations among states both experiencing backsliding or not are more complex and merits further investigation.
+
+# Conclusion
+
+In this paper we set out to explore the dynamics between international legal engagement via derogation and democratic backsliding. Given the global trend in democratic backsliding and concerns about the robustness of democratic institutions, we examinde how and why states used legal loopholes to limit their international human rights law obligations. We argued that the interaction between these two phenomena could provide insights into state behavior based, in part, on transparency around crises.
+
+The statistical findings indicate a few key takeaways. First, derogation behavior was distinct from other types of human rights treaty legal behaviors during the pandemic. States that did not typically submit treaty actions did so intentionally during the pandemic to signal the restriction of human rights obligations to the ICCPR. Second, backsliding states still engaged in signaling crisis restrictions on rights via the submission of derogations. Democratic backsliders did not withdraw from participating with the international human rights regime, they still saw some value in participating. Third, backsliding was associated with increased odds of abusive and discriminatory practices during the pandemic. Fourth, and importantly, the interaction between derogations and backsliding appears to have potentially mitigated some of the abusive behaviors during the pandemic.
+
+What these findings point to is that democratic backsliding is a complex phenomenon---states experiencing backsliding impose discriminatory policies and abusive behaviors, but part of their institutional embeddedness remains invested, at least in part, in communicating some of these problems and maintaining connections with the international community around human rights. It is important to note that this study maps behavior that occurred but it does not fully theorize or test why backsliders were motivated to care about and submit derogations. We encourage future research on democratic backsliding and human rights to more fully examine backslider consideration of reputation, foreign policy during backsliding, and specifically international human rights law behavior during backsliding. Research might also track how continued engagement with international human rights law might shape, or mitigate, backsliding itself. Overall, this piece contributes to the understanding of how neither derogation filing nor backsliding alone depict a complete picture of human rights and legal behaviors during the pandemic. Looking at both practices together helps us to understand how states operated in and signaled about their human rights during the COVID-19 pandemic.
+
+# References

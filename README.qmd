@@ -14,20 +14,17 @@ knitr::opts_chunk$set(
 
 library(emoji)
 
-# manuscript_target <- targets::tar_read(manuscript)
+manuscript_target <- targets::tar_read(manuscript)
 
-# yaml_metadata <- rmarkdown::yaml_front_matter(here::here("manuscript", "manuscript.qmd"))
-# title <- yaml_metadata$title
-# abstract <- yaml_metadata$abstract
-
-title <- "Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic"
-abstract <- "TODO"
+yaml_metadata <- rmarkdown::yaml_front_matter(here::here("manuscript", "manuscript.qmd"))
+title <- yaml_metadata$title
+abstract <- yaml_metadata$abstract
 ```
 
 # `r title`
 
-[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark College  
-[Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State University  
+[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark College
+[Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State University
 [Andrew Heiss](https://www.andrewheiss.com/) • Andrew Young School of Policy Studies • Georgia State University
 
 <!-- badges: start -->
