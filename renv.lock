@@ -2987,14 +2987,14 @@
     },
     "tinytable": {
       "Package": "tinytable",
-      "Version": "0.3.0.26",
+      "Version": "0.3.0.28",
       "Source": "Repository",
       "Repository": "CRAN",
       "Requirements": [
         "R",
         "methods"
       ],
-      "Hash": "33d503a99c1448956c61fe44079b61e9"
+      "Hash": "c69c4f75d253cdbc62f1626561593f4d"
     },
     "tinytex": {
       "Package": "tinytex",
