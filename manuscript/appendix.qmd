@@ -22,11 +22,26 @@ code-repo: "Access the code, data, and analysis at <https://github.com/andrewhei
 bibliography: references.json
 csl: csl/apa.csl
 link-citations: true
+# crossref:
+#   tbl-title: "Table&nbsp;A"
+#   tbl-prefix: "Table&nbsp;A"
+#   fig-title: "Figure&nbsp;A"
+#   fig-prefix: "Figure&nbsp;A"
 crossref:
-  tbl-title: "Table&nbsp;A"
-  tbl-prefix: "Table&nbsp;A"
-  fig-title: "Figure&nbsp;A"
-  fig-prefix: "Figure&nbsp;A"
+  custom:
+    - kind: float
+      key: appfig
+      latex-env: appfig
+      reference-prefix: Figure A
+      space-before-numbering: false
+      latex-list-of-description: Appendix Figure
+    - kind: float
+      key: apptbl
+      latex-env: apptbl
+      reference-prefix: Table A
+      space-before-numbering: false
+      latex-list-of-description: Appendix Table
+apptbl-cap-location: top
 toc: true
 toc-depth: 2
 ---
@@ -74,6 +89,11 @@ tar_load(c(m_tbl_derogations, m_tbl_restrictions, m_tbl_hr))
 
 invisible(list2env(tar_read(graphic_functions), .GlobalEnv))
 invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
+
+if (fmt_out == "latex") {
+  theme_appendix <- function(x) theme_tt(x, "tabular", style = "tabularray")
+  options(tinytable_tt_theme = theme_appendix)
+}
 ```
 
 \clearpage
@@ -82,11 +102,12 @@ invisible(list2env(tar_read(modelsummary_functions), .GlobalEnv))
 
 We use Stan `r cmdstanr::cmdstan_version()` [@stan] through R `r paste0(version$major, ".", version$minor)` [@rproject-4-4-0] and {brms} `r packageVersion("brms")` [@Burkner:2017] to estimate our models. We generate 4 MCMC chains for each model with 2,000 iterations in each chain, 1,000 of which are used for warmup. All chains converge; we assess convergence with visual inspection. Complete results from all the models, along with posterior predictive checks, goodness-of-fit measures, and prediction diagnostics are all available at a companion statistical analysis compendium at <https://doi.org/10.17605/OSF.IO/ANONYMIZED-FOR-NOW>.
 
-We use weakly informative priors [@GelmanJakulinPittau:2008] for our logistic and ordered logistic regression models. For consistency with prior specification, and for computation efficiency, we mean-center all nonbinary variables so that parameter estimates represent changes from the mean. For all $\beta$ terms in each of the models, we use a Student t distribution with a mean of 0 and a standard deviation of 3 (see @fig-prior). This keeps most parameter estimates around −5 to 5, with thicker tails that allow for some possibility of extreme values. These priors give more weight to realistic areas of parameter values and downweight values in unrealistic spaces. For instance, since logit-scale coefficient values greater than 4 or 5 are highly unlikely, our Student t prior puts more weight on smaller values. Additionally, weakly informative priors allow reasonable and considerable uncertainty in possible parameter estimates.
+We use weakly informative priors [@GelmanJakulinPittau:2008] for our logistic and ordered logistic regression models. For consistency with prior specification, and for computation efficiency, we mean-center all nonbinary variables so that parameter estimates represent changes from the mean. For all $\beta$ terms in each of the models, we use a Student t distribution with a mean of 0 and a standard deviation of 3 (see @appfig-prior). This keeps most parameter estimates around −5 to 5, with thicker tails that allow for some possibility of extreme values. These priors give more weight to realistic areas of parameter values and downweight values in unrealistic spaces. For instance, since logit-scale coefficient values greater than 4 or 5 are highly unlikely, our Student t prior puts more weight on smaller values. Additionally, weakly informative priors allow reasonable and considerable uncertainty in possible parameter estimates.
+
+::: {#appfig-prior}
 
 ```{r}
-#| label: fig-prior
-#| fig-cap: "Density plot of prior distribution for model parameters"
+#| label: figure-prior
 #| fig-width: 3.5
 #| fig-height: 2.5
 #| out-width: "50%"
@@ -104,6 +125,10 @@ ggplot() +
   facet_wrap(vars("β: Student t(ν = 1, µ = 0, σ = 3)")) +
   theme_pandem(prior = TRUE)
 ```
+
+Density plot of prior distribution for model parameters
+
+:::
 
 \newpage
 
@@ -147,9 +172,10 @@ brm(
 
 ### Complete results
 
+::: {#apptbl-results-full-derogations}
+
 ```{r}
-#| label: tbl-results-full-derogations
-#| tbl-cap: "Complete results from models showing predictors of derogations (H~1~)"
+#| label: table-results-full-derogations
 #| include: true
 
 notes <- paste(
@@ -188,9 +214,13 @@ m_tbl_derogations |>
   )
 ```
 
+Complete results from models showing predictors of derogations (H~1~)
+
+:::
+
 \clearpage
 
-Model 2 in @tbl-results-full-derogations presents the results of modeling the determinants of non-derogation treaty actions. This outcome is coded as 0 each country-week if a state did not issue one of these actions that week, and 1 that week if the state did. It is coded dichotomously rather than as a count because only three country-weeks non-derogation counts greater than 1 (these were country-weeks wherein Oman issued two, the UK two, and the UK three). The dichotomous coding also mirrors how we measured ICCPR derogation data in earlier models.
+Model 2 in @apptbl-results-full-derogations presents the results of modeling the determinants of non-derogation treaty actions. This outcome is coded as 0 each country-week if a state did not issue one of these actions that week, and 1 that week if the state did. It is coded dichotomously rather than as a count because only three country-weeks non-derogation counts greater than 1 (these were country-weeks wherein Oman issued two, the UK two, and the UK three). The dichotomous coding also mirrors how we measured ICCPR derogation data in earlier models.
 
 
 \clearpage
@@ -233,9 +263,10 @@ brm(
 
 ### Complete results
 
+::: {#apptbl-results-full-restrictions}
+
 ```{r}
-#| label: tbl-results-full-restrictions
-#| tbl-cap: "Complete results from models showing relationship between derogations and COVID-19 restrictions"
+#| label: table-results-full-restrictions
 #| include: true
 
 notes <- paste(
@@ -271,6 +302,10 @@ m_tbl_restrictions |>
     tabularray_inner = inner
   )
 ```
+
+Complete results from models showing relationship between derogations and COVID-19 restrictions
+
+:::
 
 
 \clearpage
@@ -315,9 +350,10 @@ brm(
 
 ### Complete results
 
+::: {#apptbl-results-full-hr}
+
 ```{r}
-#| label: tbl-results-full-hr
-#| tbl-cap: "Complete results from models showing relationship between derogations and human rights violations (H~2~ and H~3~)"
+#| label: table-results-full-hr
 #| include: true
 
 notes <- paste(
@@ -334,7 +370,6 @@ row{odd[2-27]}={abovesep=0pt, belowsep=6pt},
 row{even[4-26]}={rowsep=0pt},
 cells={font=\\footnotesize}, row{1}={valign=b}
 "
-
 
 m_tbl_hr |>
   set_names(
@@ -357,16 +392,20 @@ m_tbl_hr |>
   )
 ```
 
+Complete results from models showing relationship between derogations and human rights violations (H~2~ and H~3~)
+
+:::
 
 \clearpage
 
 # Comparing COVID-19 derogations with other treaty actions
 
-@fig-treaty-action-state-type (also Figure 4 in the text of the paper) plots treaty actions by state and compares counts of derogations against other types of treaty actions. There were 42 states that issued any kind of human rights treaty action during this period. Twenty-one issued only derogations. The "super derogating states" that issued multiple derogations during this period also did not issue other types of treaty actions. For example, Peru issued 18 derogations and Guatemala 13, but neither of these states issued any other type of human rights treaty action during this period. Similarly, there were states that never issued derogations during this period but issued other types of human rights treaty actions. For example, the United Kingdom issued six, Oman issued three, and the Netherlands issued two other treaty actions.
+@appfig-treaty-action-state-type (also Figure 4 in the text of the paper) plots treaty actions by state and compares counts of derogations against other types of treaty actions. There were 42 states that issued any kind of human rights treaty action during this period. Twenty-one issued only derogations. The "super derogating states" that issued multiple derogations during this period also did not issue other types of treaty actions. For example, Peru issued 18 derogations and Guatemala 13, but neither of these states issued any other type of human rights treaty action during this period. Similarly, there were states that never issued derogations during this period but issued other types of human rights treaty actions. For example, the United Kingdom issued six, Oman issued three, and the Netherlands issued two other treaty actions.
+
+::: {#appfig-treaty-action-state-type}
 
 ```{r}
-#| label: fig-treaty-action-state-type
-#| fig-cap: "Counts of human rights treaty actions from March 2020–June 2021"
+#| label: figure-treaty-action-state-type
 #| fig-width: 6.5
 #| fig-height: 4
 #| include: true
@@ -396,11 +435,16 @@ plot_action_state_type |>
   theme(strip.text = element_blank())
 ```
 
-During this time, states issued treaty actions towards eight treaties and seven Optional Protocols, as shown in @tbl-treaty-action-treaty. Derogations to the ICCPR constituted the clear majority of United Nations human rights treaty engagement, comprising 111 of the 150 treaty actions. The remaining actions are depicted in @fig-treaty-non-derog. The other actions were commitment actions (11 Ratifications; 7 Accessions; and 3 Signatures) and post-commitment actions (11 Objections; 4 Territorial Applications; and 2 Declarations). Of these actions, the Territorial Applications were similar to derogations in that they remove obligations from states to comply with elements of human rights treaties. Rather than highlighting specific articles and time dimensions of limited obligation like in derogations, territorial applications are geographic-based considerations of state obligation [@Comstock:2019]. Territorial applications can remove or extend state obligations. The four territorial applications under consideration here were all issued by the United Kingdom and all extended state obligations of treaty ratification obligation to Bailiwick of Jersey, Guernsey, and Alderney, all island dependencies of the British Crown.
+Counts of human rights treaty actions from March 2020–June 2021
+
+:::
+
+During this time, states issued treaty actions towards eight treaties and seven Optional Protocols, as shown in @apptbl-treaty-action-treaty. Derogations to the ICCPR constituted the clear majority of United Nations human rights treaty engagement, comprising 111 of the 150 treaty actions. The remaining actions are depicted in @appfig-treaty-non-derog. The other actions were commitment actions (11 Ratifications; 7 Accessions; and 3 Signatures) and post-commitment actions (11 Objections; 4 Territorial Applications; and 2 Declarations). Of these actions, the Territorial Applications were similar to derogations in that they remove obligations from states to comply with elements of human rights treaties. Rather than highlighting specific articles and time dimensions of limited obligation like in derogations, territorial applications are geographic-based considerations of state obligation [@Comstock:2019]. Territorial applications can remove or extend state obligations. The four territorial applications under consideration here were all issued by the United Kingdom and all extended state obligations of treaty ratification obligation to Bailiwick of Jersey, Guernsey, and Alderney, all island dependencies of the British Crown.
+
+::: {#apptbl-treaty-action-treaty}
 
 ```{r}
-#| label: tbl-treaty-action-treaty
-#| tbl-cap: "Treaty actions issued from March 2020–June 2021, by treaty"
+#| label: table-treaty-action-treaty
 #| include: true
 
 action_treaty |>
@@ -416,10 +460,14 @@ action_treaty |>
   )
 ```
 
+Treaty actions issued from March 2020–June 2021, by treaty
+
+:::
+
+::: {#appfig-treaty-non-derog}
 
 ```{r}
-#| label: fig-treaty-non-derog
-#| fig-cap: "Non-derogation actions filed from March 2020–June 2021"
+#| label: figure-treaty-non-derog
 #| fig-width: 6.5
 #| fig-height: 2.25
 #| include: true
@@ -431,5 +479,9 @@ action_non_derog |>
   labs(x = "Number of non-derogation actions", y = NULL) +
   theme_pandem()
 ```
+
+Non-derogation actions filed from March 2020–June 2021
+
+:::
 
 \clearpage
