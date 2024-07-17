@@ -22,11 +22,6 @@ code-repo: "Access the code, data, and analysis at <https://github.com/andrewhei
 bibliography: references.json
 csl: csl/apa.csl
 link-citations: true
-# crossref:
-#   tbl-title: "Table&nbsp;A"
-#   tbl-prefix: "Table&nbsp;A"
-#   fig-title: "Figure&nbsp;A"
-#   fig-prefix: "Figure&nbsp;A"
 crossref:
   custom:
     - kind: float
