@@ -47,6 +47,8 @@ format:
         \usepackage{mathtools}
         \everydisplay\expandafter{\the\everydisplay\small }
 
+        \SetTblrStyle{foot}{font=\footnotesize}
+
     knitr:
       opts_chunk:
         dev: "cairo_pdf"
