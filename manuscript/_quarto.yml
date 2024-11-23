@@ -89,3 +89,6 @@ format:
     knitr:
       opts_chunk:
         dev: "cairo_pdf"
+  
+  # Manuscript-y Word output
+  hikmah-manuscript-docx: default
