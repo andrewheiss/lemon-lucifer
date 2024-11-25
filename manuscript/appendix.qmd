@@ -17,7 +17,7 @@ author:
   orcid: 0000-0002-3948-3914
   url: https://www.andrewheiss.com
   email: aheiss@gsu.edu
-date: 2024-06-30
+date: 2024-11-25
 code-repo: "Access the code, data, and analysis at <https://github.com/andrewheiss/lemon-lucifer>"
 bibliography: references.json
 csl: csl/apa.csl
@@ -95,8 +95,9 @@ if (fmt_out == "latex") {
 
 # Variable descriptions
 
-```{r tbl-data-sources}
-#| tbl-cap: Sources for outcomes and explanatory variables
+::: {#apptbl-data-sources}
+
+```{r table-data-sources}
 #| include: true
 
 tribble(
@@ -120,6 +121,10 @@ tribble(
     bootstrap_class = "table table-sm"
   )
 ```
+
+Sources for outcomes and explanatory variables
+
+:::
 
 # Modeling approach
 
