@@ -42,7 +42,7 @@ mitigate elements of democratic backsliding during times of crisis.
 
 ------------------------------------------------------------------------
 
-## 🍋👿: Note on “lemon lucifer” project name
+## 🍋😈: Note on “lemon lucifer” project name
 
 Because project titles change all the time with revisions, rewriting,
 and peer review, we used [{codename}](http://svmiller.com/codename/) to
