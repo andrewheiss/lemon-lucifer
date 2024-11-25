@@ -23,6 +23,23 @@ format:
     theme:
       - zephyr
       - html/custom.scss
+
+    citeproc: false
+    filters:
+      - at: pre-quarto
+        path: _extensions/andrewheiss/wordcount/citeproc.lua
+      - at: pre-quarto
+        path: _extensions/andrewheiss/wordcount/wordcount.lua
+
+    format-links:
+      - html
+      - format: hikmah-pdf
+        text: PDF
+        icon: file-pdf
+      - format: hikmah-manuscript-pdf+ms
+        text: Manuscripty PDF
+        icon: file-pdf
+
     knitr:
       opts_chunk:
         dev: "ragg_png"
