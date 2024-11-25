@@ -34,6 +34,10 @@ targets::tar_load(c(manuscript))
   <a class="btn btn-warning btn-sm mb-1" target="_blank" href="/manuscript/output/manuscript+ms.pdf">
   <i class="fa-solid fa-file-arrow-down"></i>&ensp;Manuscripty PDF <small>(download)</small>
   </a>
+
+  <a class="btn btn-info btn-sm mb-1" target="_blank" href="/manuscript/output/manuscript.docx">
+  <i class="fa-solid fa-file-word"></i>&ensp;Word <small>(download)</small>
+  </a>
 </p>
 
 <iframe src="/manuscript/output/manuscript.html" frameborder="0" style="overflow:hidden;height:90%;width:100%;border:2px solid #ccc;" height="90%" width="100%" name="manuscript"></iframe>
