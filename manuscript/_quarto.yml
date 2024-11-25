@@ -1,5 +1,13 @@
 project:
   output-dir: output
+  render: 
+    - "manuscript.qmd"
+    - "appendix.qmd"
+
+language: 
+  title-block-published: Latest version
+  related-formats-title: Other formats
+  other-links-title: Other links
 
 # This is necessary to keep intermediate files/folders hanging around when
 # rendering to the same output format (like two different PDFs)
@@ -17,8 +25,6 @@ format:
             display: none;
           }
           </style>
-    language:
-      title-block-published: "Latest version"
     shift-heading-level-by: 1
     theme:
       - zephyr
@@ -106,6 +112,6 @@ format:
     knitr:
       opts_chunk:
         dev: "cairo_pdf"
-  
+
   # Manuscript-y Word output
   hikmah-manuscript-docx: default
