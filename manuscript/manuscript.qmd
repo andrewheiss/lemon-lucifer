@@ -2,11 +2,6 @@
 title: "Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic"
 short-title: "Derogations and Backsliding"
 author:
-- name: Suparna Chaudhry
-  affiliation: Lewis and Clark College
-  orcid: 0000-0003-3506-7590
-  url: https://www.suparnachaudhry.com/
-  email: schaudhry@lclark.edu
 - name: Audrey L. Comstock
   affiliation: Arizona State University
   orcid: 0000-0003-1772-5350
@@ -27,10 +22,15 @@ author:
   email: aheiss@gsu.edu
   attributes:
     corresponding: true
+- name: Suparna Chaudhry
+  affiliation: Lewis and Clark College
+  orcid: 0000-0003-3506-7590
+  url: https://www.suparnachaudhry.com/
+  email: schaudhry@lclark.edu
 correspondence-prefix: "Correspondence concerning this article should be addressed to"
 abstract: |
   Did states misuse international legal emergency provisions during the COVID-19 pandemic to justify human rights abuse or did they follow international human rights law? Many governments restricted citizens' freedom of movement, association, and assembly during the crisis, raising questions about states' commitments to international human rights law. Some states used derogations to communicate temporary suspension of international legal provisions in a proportional and non-discriminatory manner, while others did not. We explore the dynamics of democratic backsliding and derogation use during the pandemic. We find that backsliding states were more likely to issue human rights treaty derogations. These derogations had mitigating effects once issued. Backsliding states that issued derogations were more likely to communicate restrictions and were less likely to issue abusive and discriminatory policy during the pandemic. Derogations helped temper abuse in states not experiencing backsliding. However, derogations did not always protect against abuse and media transparency in backsliding states. These results lend support to the use of flexibility mechanisms in international law and find that most states did not use emergency derogations to heighten human rights violations. The study contributes to the understanding of how international legal measures may help mitigate elements of democratic backsliding during times of crisis.
-date: 2024-11-25
+date: 2024-11-26
 code-repo: "Access the code, data, and analysis at <https://github.com/andrewheiss/lemon-lucifer>"
 keywords:
   - human rights
