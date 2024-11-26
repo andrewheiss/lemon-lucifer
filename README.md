@@ -4,14 +4,22 @@
 
 # Derogations, Democratic Backsliding, and International Human Rights During the COVID-19 Pandemic
 
-[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark
-College  
 [Audrey Comstock](https://audreylcomstock.weebly.com/) • Arizona State
 University  
 [Andrew Heiss](https://www.andrewheiss.com/) • Andrew Young School of
-Policy Studies • Georgia State University
+Policy Studies • Georgia State University  
+[Suparna Chaudhry](https://www.suparnachaudhry.com/) • Lewis and Clark
+College
+
+------------------------------------------------------------------------
 
 <!-- badges: start -->
+
+[![Preprint](https://img.shields.io/badge/Preprint-10.31235%2Fosf.io%2Fg3z6n-blue)](https://doi.org/10.31235/osf.io/g3z6n)
+[![OSF
+DOI](https://img.shields.io/badge/OSF%20project-10.17605%2FOSF.IO%2FWXPRN-blue)](https://doi.org/10.17605/OSF.IO/WXPRN)
+[![Code
+DOI](https://img.shields.io/badge/Code-10.5281%2Fzenodo.14220206-blue)](https://doi.org/10.5281/zenodo.14220206)
 <!-- badges: end -->
 
 ------------------------------------------------------------------------
