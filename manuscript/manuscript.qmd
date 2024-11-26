@@ -41,6 +41,7 @@ keywords:
 bibliography: references.json
 csl: csl/apa.csl
 link-citations: true
+word-count: "6,968"
 ---
 
 ```{r}
