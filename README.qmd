@@ -38,7 +38,7 @@ abstract <- yaml_metadata$abstract
 
 ---
 
-## `r emoji_glue(":lemon::devil:")`: Note on "lemon lucifer" project name
+## `r emoji_glue(":lemon::smiling_face_with_horns:")`: Note on "lemon lucifer" project name
 
 Because project titles change all the time with revisions, rewriting, and peer review, we used [{codename}](http://svmiller.com/codename/) to generate an internal-to-us project name that won't change.
 
