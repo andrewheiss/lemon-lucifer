@@ -1,0 +1,47 @@
+services:
+  rstudio:
+    # Need to include this when building on Apple silicon (M1-M3) Macs
+    platform: linux/amd64
+
+    build:
+      context: ".."
+      dockerfile: "docker/Dockerfile"
+
+    ports:
+      # Make RStudio server accessible at http://localhost:8787
+      - 127.0.0.1:8787:8787
+
+    environment:
+      - DISABLE_AUTH=true  # Allow password-less login to RStudio server instance
+      - IS_DOCKER=TRUE  # Used in the main repository
+      - CMDSTAN="/home/rstudio/.cmdstan/cmdstan-2.36.0"
+      - LIBGS="/usr/lib/aarch64-linux-gnu/libgs.so.9"
+
+    volumes:
+      # Mount the local lemon-lucifer folder into the container so that
+      # local files are persistent across instances of the container and so that
+      # any changes the container makes appear locally
+      - "../:/home/rstudio/lemon-lucifer"
+
+      # This makes Docker ignore the local renv folder and use the renv 
+      # package library that was created when the container was built
+      - "/home/rstudio/lemon-lucifer/renv"
+
+    command: sh -c "cd /home/rstudio/lemon-lucifer && Rscript _targets_config.R && /init > /dev/null 2>&1"
+
+  # Create a little nginx server to serve the rendered notebook and manuscript
+  # This will be accessible at http://localhost:8888
+  webserver:
+    image: nginx:mainline-alpine
+    ports:
+      - 127.0.0.1:8888:80
+    volumes: 
+      # Mount the whole lemon-lucifer folder into the nginx container at /quarto 
+      # (not just lemon-lucifer/_site, because Quarto deletes that folder 
+      # when rendering the site and deleting the mounted folder makes Docker mad). 
+      - "../:/quarto"
+
+      # The .conf file here makes it so that nginx serves /quarto/_site
+      - "../docker/misc/default.conf:/etc/nginx/conf.d/default.conf"
+    depends_on:
+      - rstudio

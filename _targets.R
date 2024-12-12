@@ -41,6 +41,11 @@ here_rel <- function(...) {fs::path_rel(here::here(...))}
 # Run the R scripts in R/
 tar_source()
 
+# Set some conditional flags
+# should_deploy <- identical(Sys.getenv("UPLOAD_WEBSITES"), "TRUE")
+should_deploy <- FALSE
+is_docker <- identical(Sys.getenv("IS_DOCKER"), "TRUE")
+
 # Pipeline ----------------------------------------------------------------
 list(
   ## Raw data files ----
@@ -107,13 +112,13 @@ list(
   tar_quarto(manuscript, path = "manuscript", quiet = FALSE),
 
   tar_quarto(website, path = ".", quiet = FALSE),
-  tar_target(deploy_script, here_rel("deploy.sh"), format = "file"),
+  tar_target(deploy_script, here_rel("deploy.sh"), format = "file", cue = tar_cue_skip(!should_deploy)),
   tar_target(deploy, {
     # Force a dependency
     website
     # Run the deploy script
-    if (Sys.getenv("UPLOAD_WEBSITES") == "TRUE") processx::run(paste0("./", deploy_script))
-  }),
+    if (should_deploy) processx::run(paste0("./", deploy_script))
+  }, cue = tar_cue_skip(!should_deploy)),
 
   ## Render the README ----
   tar_quarto(readme, here_rel("README.qmd"))

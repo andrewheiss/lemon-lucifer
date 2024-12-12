@@ -55,5 +55,11 @@ Because {brms} generates Stan code that is then compiled and run as binary execu
 
 ```{r}
 #| class-output: sh
-writeLines(readLines(file.path(Sys.getenv("HOME"), ".R/Makevars")))
+makevars_path <- file.path(Sys.getenv("HOME"), ".R/Makevars")
+
+if (file.exists(makevars_path)) {
+  writeLines(readLines(makevars_path))
+} else {
+  message("No .R/Makevars on the computer that built this")
+}
 ```
