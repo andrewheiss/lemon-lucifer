@@ -42,8 +42,7 @@ here_rel <- function(...) {fs::path_rel(here::here(...))}
 tar_source()
 
 # Set some conditional flags
-# should_deploy <- identical(Sys.getenv("UPLOAD_WEBSITES"), "TRUE")
-should_deploy <- FALSE
+should_deploy <- identical(Sys.getenv("UPLOAD_WEBSITES"), "TRUE")
 is_docker <- identical(Sys.getenv("IS_DOCKER"), "TRUE")
 
 # Pipeline ----------------------------------------------------------------
