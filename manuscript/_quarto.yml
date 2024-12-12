@@ -60,7 +60,7 @@ format:
     mainfontoptions:
       - "Numbers=Proportional"
       - "Numbers=OldStyle"
-    sansfont: "IBM Plex Sans"
+    sansfont: "Noto Sans"
     mathfont: "Libertinus Math"
     # linestretch: 1.05
 
