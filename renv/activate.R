@@ -2,8 +2,8 @@
 local({
 
   # the requested version of renv
-  version <- "1.0.7.9000"
-  attr(version, "sha") <- "fa7087c37d45f3f01f51620c876e7f535bb215ea"
+  version <- "1.0.11"
+  attr(version, "sha") <- NULL
 
   # the project directory
   project <- Sys.getenv("RENV_PROJECT")
@@ -368,8 +368,7 @@ local({
       quiet    = TRUE
     )
   
-    if ("headers" %in% names(formals(utils::download.file)))
-    {
+    if ("headers" %in% names(formals(utils::download.file))) {
       headers <- renv_bootstrap_download_custom_headers(url)
       if (length(headers) && is.character(headers))
         args$headers <- headers
@@ -457,9 +456,8 @@ local({
   
         # add custom headers if available -- note that
         # utils::available.packages() will pass this to download.file()
-        if ("headers" %in% names(formals(utils::download.file)))
-        {
-          headers <- renv_bootstrap_download_custom_headers(url)
+        if ("headers" %in% names(formals(utils::download.file))) {
+          headers <- renv_bootstrap_download_custom_headers(repos)
           if (length(headers) && is.character(headers))
             args$headers <- headers
         }
