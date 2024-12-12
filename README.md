@@ -68,13 +68,13 @@ Here’s how to do this:
 
 3.  In the Docker Desktop settings, make sure you allocate at least 8 CPUs and 16 GB of RAM.
 
-    <img src="README_files/img/docker-resources.png" style="width:90.0%" alt="Docker Desktop resource settings" />
+    <img src="README_stuff/img/docker-resources.png" style="width:90.0%" alt="Docker Desktop resource settings" />
 
 4.  Build the analysis with Docker Compose. There are two general approaches:
 
     - **Using Visual Studio Code or Positron *(recommended)***: If you [download Visual Studio Code](https://code.visualstudio.com/) or [Positron](https://github.com/posit-dev/positron) and [its Docker extension](https://code.visualstudio.com/docs/containers/overview), you can right click on the `docker-compose-prebuilt.yml` file in the File Explorer sidebar and select “Compose Up”.
 
-      <img src="README_files/img/docker-compose-sidebar.png" style="width:60.0%" alt="Docker Compose contextual menu in the Visual Studio Code sidebar" />
+      <img src="README_stuff/img/docker-compose-sidebar.png" style="width:60.0%" alt="Docker Compose contextual menu in the Visual Studio Code sidebar" />
 
     - **Using the terminal**: Using a terminal, navigate to this replication code directory and run this:
 

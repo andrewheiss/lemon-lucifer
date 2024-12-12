@@ -7,7 +7,7 @@ format:
   typst:
     toc: true
     toc-title: " "
-    include-in-header: README_files/better-layout.typ
+    include-in-header: README_stuff/better-layout.typ
     author:
     - name: Audrey L. Comstock
       affiliation: Arizona State University
@@ -47,7 +47,7 @@ abstract <- yaml_metadata$abstract
 if (knitr::pandoc_to() == "typst") {
   # typst doesn't support emoji as of 0.11.0, so we include SVG versions from 
   # Noto Emoji (https://github.com/googlefonts/noto-emoji) instead
-  emoji_out <- "![](README_files/noto-emoji-svgs/emoji_u1f34b.svg){height=1em}![](README_files/noto-emoji-svgs/emoji_u1f608.svg){height=0.8em}"
+  emoji_out <- "![](README_stuff/noto-emoji-svgs/emoji_u1f34b.svg){height=1em}![](README_stuff/noto-emoji-svgs/emoji_u1f608.svg){height=0.8em}"
 } else {
   emoji_out <- emoji_glue(":lemon::smiling_face_with_horns:")
 }
@@ -113,13 +113,13 @@ Here's how to do this:
 
 3. In the Docker Desktop settings, make sure you allocate at least 8 CPUs and 16 GB of RAM.
 
-   ![Docker Desktop resource settings](README_files/img/docker-resources.png){width=90%}
+   ![Docker Desktop resource settings](README_stuff/img/docker-resources.png){width=90%}
 
 4. Build the analysis with Docker Compose. There are two general approaches:
 
    - **Using Visual Studio Code or Positron *(recommended)***: If you [download Visual Studio Code](https://code.visualstudio.com/) or [Positron](https://github.com/posit-dev/positron) and [its Docker extension](https://code.visualstudio.com/docs/containers/overview), you can right click on the `docker-compose-prebuilt.yml` file in the File Explorer sidebar and select "Compose Up".
 
-     ![Docker Compose contextual menu in the Visual Studio Code sidebar](README_files/img/docker-compose-sidebar.png){width=60%}
+     ![Docker Compose contextual menu in the Visual Studio Code sidebar](README_stuff/img/docker-compose-sidebar.png){width=60%}
 
    - **Using the terminal**: Using a terminal, navigate to this replication code directory and run this:
 
